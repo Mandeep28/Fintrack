@@ -8,9 +8,11 @@ export const useSocket = (roomId?: string) => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    const socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3000", {
-      path: "/api/socket",
-      addTrailingSlash: false,
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
+    const socketInstance = io(socketUrl, {
+      transports: ["websocket"],
+      reconnection: true,
+      reconnectionAttempts: 10,
     });
 
     socketInstance.on("connect", () => {

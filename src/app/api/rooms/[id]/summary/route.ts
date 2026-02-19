@@ -6,7 +6,7 @@ import { startOfMonth, endOfMonth, parseISO } from "date-fns";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,7 +14,7 @@ export async function GET(
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const { id: roomId } = params;
+    const { id: roomId } = await params;
     const { searchParams } = new URL(req.url);
     const dateParam = searchParams.get("date"); // Expects YYYY-MM
 

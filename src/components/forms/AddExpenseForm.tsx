@@ -7,17 +7,18 @@ import { Loader2, DollarSign, Tag, FileText, Calendar as CalendarIcon } from "lu
 interface AddExpenseFormProps {
   roomId?: string | null;
   onSuccess: () => void;
+  initialData?: any;
 }
 
-export default function AddExpenseForm({ roomId, onSuccess }: AddExpenseFormProps) {
+export default function AddExpenseForm({ roomId, onSuccess, initialData }: AddExpenseFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
-    amount: "",
-    category: "",
-    note: "",
-    date: new Date().toISOString().split("T")[0],
-    roomId: roomId || null,
+    amount: initialData?.amount?.toString() || "",
+    category: initialData?.category || "",
+    note: initialData?.note || "",
+    date: initialData?.date ? new Date(initialData.date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+    roomId: initialData?.roomId || roomId || null,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,10 +27,17 @@ export default function AddExpenseForm({ roomId, onSuccess }: AddExpenseFormProp
     setError("");
 
     try {
-      await axios.post("/api/expenses", {
-        ...formData,
-        amount: parseFloat(formData.amount),
-      });
+      if (initialData?.id) {
+        await axios.patch(`/api/expenses/${initialData.id}`, {
+          ...formData,
+          amount: parseFloat(formData.amount),
+        });
+      } else {
+        await axios.post("/api/expenses", {
+          ...formData,
+          amount: parseFloat(formData.amount),
+        });
+      }
       onSuccess();
     } catch (err: any) {
       setError(err.response?.data?.message || "Something went wrong");
@@ -72,7 +80,7 @@ export default function AddExpenseForm({ roomId, onSuccess }: AddExpenseFormProp
             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
           >
             <option value="" disabled>Select Category</option>
-            {["Food", "Rent", "Utilities", "Shopping", "Transport", "Entertainment", "Health", "Other"].map((cat) => (
+            {["Food", "Groceries", "Café", "Rent", "Utilities", "Shopping", "Transport", "Fuel", "Entertainment", "Health", "Other"].map((cat) => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
@@ -109,7 +117,7 @@ export default function AddExpenseForm({ roomId, onSuccess }: AddExpenseFormProp
         disabled={loading}
         className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2 mt-4"
       >
-        {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : "Save Expense"}
+        {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : initialData ? "Update Expense" : "Save Expense"}
       </button>
     </form>
   );
