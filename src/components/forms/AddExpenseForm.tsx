@@ -3,6 +3,13 @@
 import { useState } from "react";
 import axios from "axios";
 import { Loader2, DollarSign, Tag, FileText, Calendar as CalendarIcon } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface AddExpenseFormProps {
   roomId?: string | null;
@@ -70,20 +77,22 @@ export default function AddExpenseForm({ roomId, onSuccess, initialData }: AddEx
         </div>
 
         <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
             <Tag className="w-5 h-5 text-slate-500" />
           </div>
-          <select
-            required
-            className="w-full bg-slate-800 border border-slate-700 text-white rounded-2xl pl-11 pr-4 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all appearance-none"
-            value={formData.category}
-            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+          <Select 
+            value={formData.category} 
+            onValueChange={(value) => setFormData({ ...formData, category: value })}
           >
-            <option value="" disabled>Select Category</option>
-            {["Food", "Groceries", "Café", "Rent", "Utilities", "Shopping", "Transport", "Fuel", "Entertainment", "Health", "Other"].map((cat) => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
+            <SelectTrigger className="pl-11">
+              <SelectValue placeholder="Select Category" />
+            </SelectTrigger>
+            <SelectContent>
+              {["Food", "Groceries", "Café", "Rent", "Utilities", "Shopping", "Transport", "Fuel", "Entertainment", "Health", "Other"].map((cat) => (
+                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="relative">
@@ -93,7 +102,8 @@ export default function AddExpenseForm({ roomId, onSuccess, initialData }: AddEx
           <input
             type="date"
             required
-            className="w-full bg-slate-800 border border-slate-700 text-white rounded-2xl pl-11 pr-4 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+            min={roomId ? new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0] : undefined}
+            className="w-full bg-slate-800 border border-slate-700 text-white rounded-2xl pl-11 pr-4 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium"
             value={formData.date}
             onChange={(e) => setFormData({ ...formData, date: e.target.value })}
           />

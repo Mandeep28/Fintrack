@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import axios from "axios";
 import { 
@@ -26,6 +27,13 @@ import {
   Area
 } from "recharts";
 import { getCategoryIcon } from "@/lib/icons";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 
 export default function DashboardPage() {
   const { data: session } = useSession();
@@ -101,14 +109,14 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-white">Hello, {session?.user?.name || "User"}</h1>
-          <p className="text-slate-400">Here's what's happening with your money today.</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Hello, {session?.user?.name || "User"}</h1>
+          <p className="text-muted-foreground text-sm md:text-base">Here's what's happening with your money today.</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl font-semibold shadow-lg shadow-blue-600/20 transition-all w-fit"
+          className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-4 rounded-2xl font-bold shadow-lg shadow-blue-600/20 transition-all w-full sm:w-fit"
         >
           <PlusCircle className="w-5 h-5" />
           Add Expense
@@ -134,41 +142,41 @@ export default function DashboardPage() {
       </Modal>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-            <TrendingUp className="w-12 h-12 text-blue-500" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        <div className="bg-card border border-border rounded-3xl p-6 shadow-xl relative overflow-hidden group transition-all hover:border-blue-500/30">
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-20 transition-opacity">
+            <TrendingUp className="w-16 h-16 text-blue-500" />
           </div>
-          <p className="text-slate-400 text-sm font-medium mb-1">Total Spent this Month</p>
-          <h3 className="text-3xl font-bold text-white mb-4">{formatCurrency(totalSpent)}</h3>
+          <p className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-2">Total Spent</p>
+          <h3 className="text-3xl font-black text-foreground mb-4 tracking-tight">{formatCurrency(totalSpent)}</h3>
           <div className={cn(
-            "flex items-center gap-2 text-sm bg-opacity-10 px-3 py-1 rounded-full w-fit font-medium",
-            Number(percentageChange) >= 0 ? "text-red-400 bg-red-400/10" : "text-emerald-400 bg-emerald-400/10"
+            "flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-xl w-fit",
+            Number(percentageChange) >= 0 ? "text-rose-400 bg-rose-400/10" : "text-emerald-400 bg-emerald-400/10"
           )}>
-            <ArrowUpRight className={cn("w-4 h-4", Number(percentageChange) < 0 && "rotate-90")} />
-            {Math.abs(Number(percentageChange))}% from last month
+            <ArrowUpRight className={cn("w-3.5 h-3.5", Number(percentageChange) < 0 && "rotate-90")} />
+            {Math.abs(Number(percentageChange))}% {Number(percentageChange) >= 0 ? "up" : "down"}
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-            <Activity className="w-12 h-12 text-purple-500" />
+        <div className="bg-card border border-border rounded-3xl p-6 shadow-xl relative overflow-hidden group transition-all hover:border-purple-500/30">
+           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-20 transition-opacity">
+            <Activity className="w-16 h-16 text-purple-500" />
           </div>
-          <p className="text-slate-400 text-sm font-medium mb-1">Average Daily</p>
-          <h3 className="text-3xl font-bold text-white mb-4">{formatCurrency(totalSpent / 30)}</h3>
-          <div className="flex items-center gap-2 text-blue-400 text-sm bg-blue-400/10 px-3 py-1 rounded-full w-fit font-medium">
-            Stayed on track
+          <p className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-2">Average Daily</p>
+          <h3 className="text-3xl font-black text-foreground mb-4 tracking-tight">{formatCurrency(totalSpent / (new Date().getDate()))}</h3>
+          <div className="flex items-center gap-2 text-purple-400 text-xs font-bold bg-purple-400/10 px-3 py-1.5 rounded-xl w-fit">
+            On track this month
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-            <Plus className="w-12 h-12 text-indigo-500" />
+        <div className="bg-card border border-border rounded-3xl p-6 shadow-xl relative overflow-hidden group transition-all hover:border-indigo-500/30">
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-20 transition-opacity">
+            <Plus className="w-16 h-16 text-indigo-500" />
           </div>
-          <p className="text-slate-400 text-sm font-medium mb-1">Active Rooms</p>
-          <h3 className="text-3xl font-bold text-white mb-4">{rooms.length}</h3>
-          <div className="flex items-center gap-2 text-indigo-400 text-sm bg-indigo-400/10 px-3 py-1 rounded-full w-fit font-medium">
-            Shared with {Math.max(0, rooms.reduce((sum, r) => sum + (r._count?.members || 0), 0) - rooms.length)} people
+          <p className="text-muted-foreground text-xs font-bold uppercase tracking-wider mb-2">Active Rooms</p>
+          <h3 className="text-3xl font-black text-foreground mb-4 tracking-tight">{rooms.length}</h3>
+          <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold bg-indigo-400/10 px-3 py-1.5 rounded-xl w-fit">
+            {rooms.length} shared rooms
           </div>
         </div>
       </div>
@@ -176,49 +184,69 @@ export default function DashboardPage() {
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Chart */}
-        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-xl font-bold text-white">Expense Over Time</h2>
-            <select className="bg-slate-800 border-none text-slate-300 text-sm rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500">
-              <option>Last 7 Days</option>
-              <option>Last 30 Days</option>
-            </select>
+        <div className="lg:col-span-2 bg-card border border-border rounded-[2.5rem] p-6 md:p-10 shadow-xl overflow-hidden">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
+            <div>
+              <h2 className="text-xl font-bold text-foreground">Expense Trend</h2>
+              <p className="text-muted-foreground text-xs mt-1 tracking-wide">Daily spending insights</p>
+            </div>
+            <Select defaultValue="7days">
+              <SelectTrigger className="w-[140px] h-10 text-[10px] font-bold rounded-xl bg-secondary border-border pl-4">
+                <SelectValue placeholder="Select range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7days">Last 7 Days</SelectItem>
+                <SelectItem value="30days">Last 30 Days</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[280px] md:h-[320px] w-full -ml-4 md:-ml-6">
+            <ResponsiveContainer width="105%" height="100%">
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
                     <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="name" 
-                  stroke="#64748b" 
-                  fontSize={12} 
+                  stroke="hsl(var(--muted-foreground))" 
+                  fontSize={10}
+                  fontWeight="bold"
                   tickLine={false} 
                   axisLine={false} 
+                  dy={10}
                 />
                 <YAxis 
-                  stroke="#64748b" 
-                  fontSize={12} 
+                  stroke="hsl(var(--muted-foreground))" 
+                  fontSize={10}
+                  fontWeight="bold"
                   tickLine={false} 
                   axisLine={false}
                   tickFormatter={(value) => `₹${value}`}
+                  dx={-10}
                 />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px" }}
-                  itemStyle={{ color: "#fff" }}
+                  contentStyle={{ 
+                    backgroundColor: "hsl(var(--popover))", 
+                    border: "1px solid hsl(var(--border))", 
+                    borderRadius: "16px",
+                    boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)",
+                    padding: "12px"
+                  }}
+                  itemStyle={{ color: "hsl(var(--popover-foreground))", fontWeight: "bold" }}
+                  cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 2, strokeDasharray: '5 5' }}
                 />
                 <Area 
                   type="monotone" 
                   dataKey="amount" 
                   stroke="#3b82f6" 
-                  strokeWidth={3}
+                  strokeWidth={4}
                   fillOpacity={1} 
                   fill="url(#colorAmount)" 
+                  animationDuration={1500}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -226,49 +254,57 @@ export default function DashboardPage() {
         </div>
 
         {/* Transactions */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl">
-          <h2 className="text-xl font-bold text-white mb-6">Recent Activity</h2>
-          <div className="space-y-6">
+        <div className="bg-card border border-border rounded-[2.5rem] p-6 md:p-8 shadow-xl">
+          <div className="flex items-center justify-between mb-8 px-2">
+            <h2 className="text-xl font-bold text-foreground">Activity</h2>
+            <Link href="/expenses" className="text-primary text-xs font-bold hover:underline">View All</Link>
+          </div>
+          <div className="space-y-4">
             {expenses.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-slate-500 text-sm">No expenses yet.</p>
+                <div className="w-16 h-16 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-dashed border-border">
+                  <Activity className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <p className="text-muted-foreground text-sm font-medium">No recent transactions</p>
               </div>
             ) : (
               expenses.slice(0, 5).map((exp) => {
                 const Icon = getCategoryIcon(exp.category);
                 return (
-                  <div key={exp.id} className="flex items-center justify-between group cursor-pointer">
+                  <div key={exp.id} className="flex items-center justify-between group p-3 -mx-3 rounded-2xl hover:bg-muted/40 transition-all border border-transparent hover:border-border">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-slate-300 group-hover:bg-blue-600/20 group-hover:text-blue-400 transition-colors">
+                      <div className="w-11 h-11 bg-muted rounded-[14px] flex items-center justify-center text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-all shadow-sm">
                         <Icon className="w-5 h-5" />
                       </div>
                       <div>
-                        <p className="text-white font-medium text-sm group-hover:text-blue-400 transition-colors">{exp.category}</p>
-                        <p className="text-slate-500 text-xs">{formatDate(exp.date)}</p>
+                        <p className="text-foreground font-bold text-sm group-hover:text-primary transition-colors">{exp.category}</p>
+                        <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-tighter mt-0.5">{formatDate(exp.date)}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-white font-bold text-sm mr-2">-{formatCurrency(exp.amount)}</p>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditModal(exp);
-                        }}
-                        className="p-2 text-slate-600 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                        title="Edit Expense"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteExpense(exp.id);
-                        }}
-                        className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                        title="Delete Expense"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                    <div className="flex items-center gap-1.5 md:gap-3">
+                      <p className="text-foreground font-black text-sm text-right shrink-0">-{formatCurrency(exp.amount)}</p>
+                      <div className="flex items-center">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditModal(exp);
+                          }}
+                          className="p-2 text-slate-500 hover:text-blue-400 hover:bg-blue-400/10 rounded-xl transition-all opacity-0 group-hover:opacity-100 hidden sm:block"
+                          title="Edit"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteExpense(exp.id);
+                          }}
+                          className="p-2 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );

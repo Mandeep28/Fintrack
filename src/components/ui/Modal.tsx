@@ -48,16 +48,16 @@ export default function Modal({ isOpen, onClose, title, children, className }: M
           className
         )}
       >
-        <div className="px-8 py-6 border-b border-slate-800 flex items-center justify-between">
+        <div className="px-6 md:px-8 py-5 md:py-6 border-b border-slate-800 flex items-center justify-between">
           <h3 className="text-xl font-bold text-white">{title}</h3>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-all"
+            className="p-2 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-all outline-none"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-8">
+        <div className="p-6 md:p-8 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar">
           {children}
         </div>
       </div>

@@ -26,14 +26,14 @@ export default function RoomsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-white">My Rooms</h1>
-          <p className="text-slate-400">Manage shared expenses with your friends and family.</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">My Rooms</h1>
+          <p className="text-slate-400 text-sm md:text-base mt-1">Manage shared expenses with your friends and family.</p>
         </div>
         <Link 
           href="/rooms/new"
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl font-semibold shadow-lg shadow-blue-600/20 transition-all"
+          className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-4 rounded-2xl font-bold shadow-lg shadow-blue-600/20 transition-all w-full sm:w-fit"
         >
           <Plus className="w-5 h-5" />
           Create Room
