@@ -1,102 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Wallet, Loader2 } from "lucide-react";
-import axios from "axios";
+import { TrendingUp } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    try {
-      await axios.post("/api/auth/register", formData);
-      router.push("/login?registered=true");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Something went wrong");
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    router.replace("/login");
+  }, [router]);
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl">
-        <div className="flex flex-col items-center mb-8">
-          <div className="p-3 bg-blue-600 rounded-2xl mb-4 shadow-lg shadow-blue-500/20">
-            <Wallet className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Create Account</h1>
-          <p className="text-slate-400">Join FinTrack and start managing smarter</p>
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-card border border-border rounded-3xl p-8 shadow-2xl text-center">
+        <div className="p-3.5 bg-primary/10 rounded-2xl mb-4 inline-flex text-primary">
+          <TrendingUp className="w-8 h-8" />
         </div>
-
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-500 px-4 py-3 rounded-xl mb-6 text-sm text-center">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-400 ml-1">Full Name</label>
-            <input
-              type="text"
-              required
-              className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-              placeholder="John Doe"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-400 ml-1">Email Address</label>
-            <input
-              type="email"
-              required
-              className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-              placeholder="you@example.com"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-400 ml-1">Password</label>
-            <input
-              type="password"
-              required
-              className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2"
-          >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Sign Up"}
-          </button>
-        </form>
-
-        <p className="mt-8 text-center text-slate-400 text-sm">
-          Already have an account?{" "}
-          <Link href="/login" className="text-blue-500 hover:text-blue-400 font-semibold transition-colors">
-            Login here
-          </Link>
+        <h1 className="text-2xl font-bold text-foreground mb-2">Registration Disabled</h1>
+        <p className="text-muted-foreground text-sm mb-6">
+          Public signups are currently closed. Please sign in with your credentials.
         </p>
+        <Link
+          href="/login"
+          className="inline-flex items-center justify-center px-6 py-3.5 bg-primary text-primary-foreground font-bold rounded-2xl shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all text-sm"
+        >
+          Go to Sign In
+        </Link>
       </div>
     </div>
   );

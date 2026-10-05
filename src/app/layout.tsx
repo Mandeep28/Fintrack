@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import AuthProvider from "@/components/providers/AuthProvider";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { Toaster } from "@/components/ui/sonner";
+import TopLoadingBar from "@/components/layout/TopLoadingBar";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,9 +21,6 @@ export const metadata: Metadata = {
   description: "Track your personal and shared expenses with ease",
 };
 
-import { ThemeProvider } from "@/components/providers/ThemeProvider";
-import { Toaster } from "@/components/ui/sonner";
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -37,6 +37,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <TopLoadingBar />
           <AuthProvider>
             {children}
             <Toaster richColors closeButton position="top-right" />

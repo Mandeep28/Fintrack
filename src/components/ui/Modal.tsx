@@ -44,15 +44,15 @@ export default function Modal({ isOpen, onClose, title, children, className }: M
       <div 
         ref={modalRef}
         className={cn(
-          "relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200",
+          "relative w-full max-w-lg bg-card border border-border text-card-foreground rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200",
           className
         )}
       >
-        <div className="px-6 md:px-8 py-5 md:py-6 border-b border-slate-800 flex items-center justify-between">
-          <h3 className="text-xl font-bold text-white">{title}</h3>
+        <div className="px-6 md:px-8 py-5 md:py-6 border-b border-border flex items-center justify-between">
+          <h3 className="text-xl font-bold text-foreground">{title}</h3>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-all outline-none"
+            className="p-2 hover:bg-secondary rounded-xl text-muted-foreground hover:text-foreground transition-all outline-none cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>

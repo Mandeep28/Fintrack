@@ -17,6 +17,8 @@ model User {
   rooms        RoomMember[]
   expenses     Expense[]
   createdRooms Room[]       @relation("CreatedBy")
+  budgets      Budget[]
+  categories   Category[]
 }
 
 model Room {
@@ -58,4 +60,33 @@ model Expense {
   @@index([roomId])
   @@index([userId])
   @@index([date])
+}
+
+model Budget {
+  id        String   @id @default(cuid())
+  userId    String
+  category  String
+  amount    Decimal
+  month     String?  // Optional: "YYYY-MM" (e.g. "2026-09") for monthly budget, null for default
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category, month])
+  @@index([userId])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  color     String?
+  icon      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([userId])
 }

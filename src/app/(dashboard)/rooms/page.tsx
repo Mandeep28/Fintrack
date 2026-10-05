@@ -25,15 +25,15 @@ export default function RoomsPage() {
   }, []);
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-16">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-border pb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white">My Rooms</h1>
-          <p className="text-slate-400 text-sm md:text-base mt-1">Manage shared expenses with your friends and family.</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">My Rooms</h1>
+          <p className="text-muted-foreground text-sm md:text-base mt-1">Manage shared expenses with your friends and family.</p>
         </div>
         <Link 
           href="/rooms/new"
-          className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-4 rounded-2xl font-bold shadow-lg shadow-blue-600/20 transition-all w-full sm:w-fit"
+          className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3.5 rounded-2xl font-bold shadow-lg shadow-primary/20 transition-all w-full sm:w-fit cursor-pointer text-sm"
         >
           <Plus className="w-5 h-5" />
           Create Room
@@ -43,18 +43,18 @@ export default function RoomsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
           [1, 2, 3].map((i) => (
-            <div key={i} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 h-48 animate-pulse" />
+            <div key={i} className="bg-card border border-border rounded-3xl p-6 h-48 animate-pulse" />
           ))
         ) : rooms.length === 0 ? (
-          <div className="col-span-full bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center">
-             <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-               <Users className="w-8 h-8 text-slate-500" />
+          <div className="col-span-full bg-card border border-border rounded-3xl p-12 text-center shadow-sm">
+             <div className="w-16 h-16 bg-secondary rounded-2xl flex items-center justify-center mx-auto mb-4">
+               <Users className="w-8 h-8 text-muted-foreground" />
              </div>
-             <h2 className="text-xl font-bold text-white mb-2">No rooms found</h2>
-             <p className="text-slate-400 mb-6">Create your first room to start splitting expenses.</p>
+             <h2 className="text-xl font-bold text-foreground mb-2">No rooms found</h2>
+             <p className="text-muted-foreground mb-6">Create your first room to start splitting expenses.</p>
              <Link 
                 href="/rooms/new"
-                className="text-blue-500 font-semibold hover:text-blue-400 transition-colors"
+                className="text-primary font-bold hover:underline transition-colors"
               >
                 Create a room now &rarr;
               </Link>
@@ -64,25 +64,25 @@ export default function RoomsPage() {
             <Link 
               key={room.id}
               href={`/rooms/${room.id}`}
-              className="bg-slate-900 border border-slate-800 rounded-3xl p-6 hover:border-blue-500/50 hover:shadow-2xl hover:shadow-blue-500/10 transition-all group"
+              className="bg-card border border-border rounded-3xl p-6 hover:border-primary/50 hover:shadow-xl transition-all group"
             >
               <div className="flex justify-between items-start mb-4">
-                <div className="p-3 bg-blue-600/10 rounded-2xl text-blue-500 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <div className="p-3 bg-primary/10 rounded-2xl text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                   <Users className="w-6 h-6" />
                 </div>
-                <div className="bg-slate-800 text-slate-400 px-3 py-1 rounded-full text-xs font-medium">
+                <div className="bg-secondary text-muted-foreground px-3 py-1 rounded-full text-xs font-semibold">
                   {room._count.members} Members
                 </div>
               </div>
-              <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">{room.name}</h3>
-              <p className="text-slate-500 text-sm mb-6">Split everything equally. Instantly.</p>
+              <h3 className="text-xl font-bold text-foreground mb-2 group-hover:text-primary transition-colors">{room.name}</h3>
+              <p className="text-muted-foreground text-sm mb-6">Split everything equally. Instantly.</p>
               
-              <div className="flex items-center justify-between pt-4 border-t border-slate-800">
-                <div className="flex items-center gap-2 text-slate-400 text-xs">
+              <div className="flex items-center justify-between pt-4 border-t border-border">
+                <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
                   <MessageSquare className="w-4 h-4" />
                   Real-time enabled
                 </div>
-                <ArrowRight className="w-5 h-5 text-slate-600 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
               </div>
             </Link>
           ))

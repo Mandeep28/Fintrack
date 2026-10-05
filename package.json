@@ -7,7 +7,9 @@
     "dev:custom": "node server.js",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:reset": "prisma migrate reset",
+    "db:seed": "node prisma/seed.js"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.4.0",
@@ -48,5 +50,8 @@
     "prisma": "^7.4.1",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   }
 }
