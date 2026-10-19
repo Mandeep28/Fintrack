@@ -1,3 +1,11 @@
+if (typeof process.loadEnvFile === "function") {
+  try {
+    process.loadEnvFile();
+  } catch (_e) {
+    // .env already loaded or not found
+  }
+}
+
 const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const pg = require("pg");
@@ -12,15 +20,25 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log("Seeding accounts...");
 
+  const testPassword =
+    process.env.TEST_ACCOUNT_PASSWORD ||
+    process.env.TEST_PASSWORD ||
+    "Fintrack@911";
+
+  const mainPassword =
+    process.env.MAIN_ACCOUNT_PASSWORD ||
+    process.env.MAIN_PASSWORD ||
+    "Fintrack@455";
+
   const users = [
     {
       email: "test@mail.com",
-      passwordRaw: "Fintrack@911",
+      passwordRaw: testPassword,
       name: "Test User",
     },
     {
       email: "mandeepsinghbuilds@gmail.com",
-      passwordRaw: "Fintrack@455",
+      passwordRaw: mainPassword,
       name: "Mandeep Singh",
     },
   ];
