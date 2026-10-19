@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ShieldAlert, AlertTriangle, ArrowRight, X } from "lucide-react";
+import { ShieldAlert, ArrowRight } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { getCategoryIcon, getCategoryColor } from "@/lib/icons";
 import Modal from "@/components/ui/Modal";

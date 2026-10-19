@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import Link from "next/link";
 import { 
@@ -149,7 +149,7 @@ export default function ActivityPage() {
       await axios.delete(`/api/expenses/${id}`);
       toast.success("Expense deleted successfully");
       fetchExpenses();
-    } catch (err) {
+    } catch {
       toast.error("Failed to delete expense");
     }
   };

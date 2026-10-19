@@ -45,7 +45,11 @@ function LoadingBarInner() {
   useEffect(() => {
     const fullUrl = `${pathname}?${searchParams.toString()}`;
     if (currentUrlRef.current && currentUrlRef.current !== fullUrl) {
-      completeProgress();
+      const timer = setTimeout(() => {
+        completeProgress();
+      }, 0);
+      currentUrlRef.current = fullUrl;
+      return () => clearTimeout(timer);
     }
     currentUrlRef.current = fullUrl;
   }, [pathname, searchParams]);

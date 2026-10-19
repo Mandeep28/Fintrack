@@ -8,7 +8,6 @@ import { Loader2, Users, AlertCircle } from "lucide-react";
 export default function JoinRoomPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { id: roomId } = use(params);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -23,7 +22,6 @@ export default function JoinRoomPage({ params }: { params: Promise<{ id: string 
            return;
         }
         setError(err.response?.data?.message || "Failed to join room");
-        setLoading(false);
       }
     };
 
@@ -36,7 +34,7 @@ export default function JoinRoomPage({ params }: { params: Promise<{ id: string 
         <div className="p-4 bg-red-500/10 rounded-full mb-6">
           <AlertCircle className="w-12 h-12 text-red-500" />
         </div>
-        <h1 className="text-2xl font-bold text-white mb-2">Oops! Couldn't join room</h1>
+        <h1 className="text-2xl font-bold text-white mb-2">Oops! Couldn&apos;t join room</h1>
         <p className="text-slate-400 mb-8 max-w-sm">{error}</p>
         <button 
           onClick={() => router.push("/rooms")}

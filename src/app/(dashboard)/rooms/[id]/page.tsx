@@ -1,18 +1,15 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useCallback } from "react";
 import axios from "axios";
 import {
   Users,
   Plus,
-  Settings,
   Calendar,
-  AlertCircle,
   Share2,
   DollarSign,
   Trash2,
-  TrendingUp,
-  Pencil
+  TrendingUp
 } from "lucide-react";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { useSocket } from "@/hooks/useSocket";
@@ -38,10 +35,14 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingExpense, setEditingExpense] = useState<any>(null);
+  const [isMounted, setIsMounted] = useState(false);
   const { socket, isConnected } = useSocket(roomId);
 
-  const fetchRoomData = async () => {
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const fetchRoomData = useCallback(async () => {
     try {
       const [roomRes, summaryRes] = await Promise.all([
         axios.get(`/api/rooms/${roomId}`),
@@ -54,7 +55,7 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
     } finally {
       setLoading(false);
     }
-  };
+  }, [roomId]);
 
   const deleteExpense = async (id: string) => {
     // We can keep the simple confirm for now as a safeguard, 
@@ -73,14 +74,9 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
     }
   };
 
-  const openEditModal = (expense: any) => {
-    setEditingExpense(expense);
-    setIsModalOpen(true);
-  };
-
   useEffect(() => {
     fetchRoomData();
-  }, [roomId]);
+  }, [fetchRoomData]);
 
   // Calculate chart data for room spending
   const last7Days = [...Array(7)].map((_, i) => {
@@ -111,7 +107,7 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
     return () => {
       if (socket) socket.off("expense-added");
     };
-  }, [socket, roomId]);
+  }, [socket, roomId, fetchRoomData]);
 
   const handleShare = async () => {
     const url = `${window.location.origin}/rooms/${roomId}/join`;
@@ -280,45 +276,47 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
             <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">Last 7 Days</p>
           </div>
           <div className="h-[250px] w-full -ml-4 md:-ml-6">
-            <ResponsiveContainer width="105%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorRoomAmount" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis
-                  dataKey="name"
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={10}
-                  fontWeight="bold"
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={10}
-                  fontWeight="bold"
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => `₹${value}`}
-                />
-                <Tooltip
-                  contentStyle={{ backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "16px" }}
-                  itemStyle={{ color: "hsl(var(--popover-foreground))", fontWeight: "bold" }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="amount"
-                  stroke="#3b82f6"
-                  strokeWidth={3}
-                  fillOpacity={1}
-                  fill="url(#colorRoomAmount)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {isMounted ? (
+              <ResponsiveContainer width="105%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="colorRoomAmount" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis
+                    dataKey="name"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={10}
+                    fontWeight="bold"
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={10}
+                    fontWeight="bold"
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) => `₹${value}`}
+                  />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "16px" }}
+                    itemStyle={{ color: "hsl(var(--popover-foreground))", fontWeight: "bold" }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="amount"
+                    stroke="#3b82f6"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#colorRoomAmount)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : null}
           </div>
         </div>
 

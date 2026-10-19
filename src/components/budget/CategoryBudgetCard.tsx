@@ -1,16 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { 
   Target, 
-  AlertTriangle, 
-  CheckCircle, 
   Pencil, 
   Plus, 
   Loader2, 
-  TrendingUp, 
-  ChevronRight,
   ShieldAlert
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -50,7 +46,7 @@ export default function CategoryBudgetCard({ onBudgetChange, refreshTrigger }: C
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
   const currentMonthName = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
-  const fetchBudgets = async () => {
+  const fetchBudgets = useCallback(async () => {
     try {
       setLoading(true);
       const res = await axios.get(`/api/budgets?month=${currentMonth}`);
@@ -60,11 +56,11 @@ export default function CategoryBudgetCard({ onBudgetChange, refreshTrigger }: C
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentMonth]);
 
   useEffect(() => {
     fetchBudgets();
-  }, [refreshTrigger]);
+  }, [fetchBudgets, refreshTrigger]);
 
   const handleOpenEdit = (category: string, currentBudget: number | null) => {
     setEditingCategory(category);
@@ -101,9 +97,8 @@ export default function CategoryBudgetCard({ onBudgetChange, refreshTrigger }: C
     }
   };
 
-  // Find exceeded or warning categories
+  // Find exceeded categories
   const exceededCategories = data?.categories.filter((c) => c.status === "exceeded") || [];
-  const warningCategories = data?.categories.filter((c) => c.status === "warning") || [];
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-6 md:p-8 shadow-2xl space-y-6">

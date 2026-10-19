@@ -11,7 +11,11 @@ import {
   Fuel, 
   MoreHorizontal,
   Compass,
-  FileText,
+  PiggyBank,
+  CreditCard,
+  Smartphone,
+  Landmark,
+  GraduationCap,
   LucideIcon
 } from "lucide-react";
 
@@ -24,6 +28,18 @@ export const categoryIcons: Record<string, LucideIcon> = {
   "Entertainment": Film,
   "Health": HeartPulse,
   "Other": MoreHorizontal,
+
+  // Goal & Financial Categories
+  "Savings": PiggyBank,
+  "Debt & Loans": CreditCard,
+  "Loan": CreditCard,
+  "Debt": CreditCard,
+  "Electronics": Smartphone,
+  "Gadgets": Smartphone,
+  "Vehicle": Car,
+  "Education": GraduationCap,
+  "Investment": Landmark,
+  "Emergency Fund": Landmark,
 
   // Legacy / Granular mappings for backwards-compatibility
   "Groceries": ShoppingCart,
@@ -41,6 +57,11 @@ export const categoryColors: Record<string, { bg: string; text: string; border: 
   "Shopping": { bg: "bg-pink-500/10", text: "text-pink-500", border: "border-pink-500/20" },
   "Entertainment": { bg: "bg-emerald-500/10", text: "text-emerald-500", border: "border-emerald-500/20" },
   "Health": { bg: "bg-rose-500/10", text: "text-rose-500", border: "border-rose-500/20" },
+  "Savings": { bg: "bg-emerald-500/10", text: "text-emerald-500", border: "border-emerald-500/20" },
+  "Debt & Loans": { bg: "bg-violet-500/10", text: "text-violet-500", border: "border-violet-500/20" },
+  "Loan": { bg: "bg-violet-500/10", text: "text-violet-500", border: "border-violet-500/20" },
+  "Debt": { bg: "bg-violet-500/10", text: "text-violet-500", border: "border-violet-500/20" },
+  "Electronics": { bg: "bg-cyan-500/10", text: "text-cyan-500", border: "border-cyan-500/20" },
   "Other": { bg: "bg-slate-500/10", text: "text-slate-400", border: "border-slate-500/20" },
 };
 

@@ -11,7 +11,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BROAD_CATEGORIES, detectCategory } from "@/lib/categorizer";
-import { getCategoryColor } from "@/lib/icons";
 
 interface AddExpenseFormProps {
   roomId?: string | null;

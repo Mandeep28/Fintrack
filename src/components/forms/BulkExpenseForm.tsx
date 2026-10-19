@@ -8,8 +8,6 @@ import {
   Loader2, 
   AlertCircle, 
   CheckCircle2, 
-  ArrowRight,
-  ListPlus,
   HelpCircle
 } from "lucide-react";
 import { BROAD_CATEGORIES, parseBulkText, ParsedExpense, detectCategory } from "@/lib/categorizer";

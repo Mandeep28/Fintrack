@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
 export const useSocket = (roomId?: string) => {
@@ -26,7 +26,9 @@ export const useSocket = (roomId?: string) => {
       setIsConnected(false);
     });
 
-    setSocket(socketInstance);
+    queueMicrotask(() => {
+      setSocket(socketInstance);
+    });
 
     return () => {
       socketInstance.disconnect();

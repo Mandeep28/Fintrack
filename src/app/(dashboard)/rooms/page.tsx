@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import Link from "next/link";
 import { Users, Plus, ArrowRight, MessageSquare } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export default function RoomsPage() {
   const [rooms, setRooms] = useState<any[]>([]);

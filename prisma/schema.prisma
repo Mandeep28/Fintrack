@@ -19,6 +19,7 @@ model User {
   createdRooms Room[]       @relation("CreatedBy")
   budgets      Budget[]
   categories   Category[]
+  goals        Goal[]
 }
 
 model Room {
@@ -89,4 +90,36 @@ model Category {
 
   @@unique([userId, name])
   @@index([userId])
+}
+
+model Goal {
+  id            String   @id @default(cuid())
+  userId        String
+  title         String
+  targetAmount  Decimal
+  currentAmount Decimal  @default(0)
+  category      String
+  type          String   @default("SAVINGS") // "SAVINGS" (e.g. buying smartphone) or "DEBT" (e.g. loan payoff)
+  deadline      DateTime?
+  status        String   @default("ACTIVE")  // "ACTIVE" or "COMPLETED"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contributions GoalContribution[]
+
+  @@index([userId])
+}
+
+model GoalContribution {
+  id        String   @id @default(cuid())
+  goalId    String
+  amount    Decimal
+  note      String?
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId])
 }

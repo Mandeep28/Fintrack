@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Target, ChevronRight, AlertTriangle, ArrowRight, Plus } from "lucide-react";
+import { Target, AlertTriangle, ArrowRight, Plus } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import { getCategoryIcon, getCategoryColor } from "@/lib/icons";
 
