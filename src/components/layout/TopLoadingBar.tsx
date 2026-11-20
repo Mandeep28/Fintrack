@@ -95,7 +95,7 @@ function LoadingBarInner() {
   return (
     <div className="fixed top-0 left-0 right-0 h-[3px] z-[99999] pointer-events-none bg-transparent">
       <div
-        className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 shadow-[0_0_12px_rgba(59,130,246,0.8)] transition-all duration-200 ease-out"
+        className="h-full bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.8)] transition-all duration-200 ease-out"
         style={{
           width: `${progress}%`,
           opacity: visible ? 1 : 0,

@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
-import Link from "next/link";
-import { 
-  ArrowLeft, 
-  Activity, 
-  Trash2, 
-  Pencil, 
-  Search, 
+import dynamic from "next/dynamic";
+import {
+  Activity,
+  Trash2,
+  Pencil,
+  Search,
   Calendar,
   Loader2,
   FileSpreadsheet,
@@ -20,8 +19,14 @@ import {
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { getCategoryIcon, getCategoryColor } from "@/lib/icons";
 import Modal from "@/components/ui/Modal";
-import AddExpenseForm from "@/components/forms/AddExpenseForm";
 import { toast } from "sonner";
+import { useExpensesQuery, useInvalidateData } from "@/hooks/useQueries";
+import Breadcrumb from "@/components/ui/Breadcrumb";
+
+const AddExpenseForm = dynamic(
+  () => import("@/components/forms/AddExpenseForm"),
+  { ssr: false }
+);
 
 const MONTH_OPTIONS = [
   { value: "all", label: "All Months" },
@@ -49,20 +54,16 @@ const YEAR_OPTIONS = [
 ];
 
 export default function ActivityPage() {
-  const [expenses, setExpenses] = useState<any[]>([]);
-  const [categoriesList, setCategoriesList] = useState<string[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalFilteredAmount, setTotalFilteredAmount] = useState(0);
-
-  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const limit = 20;
 
   // Filters: Separate Year & Month (Defaults to Current Year & Current Month)
-  const today = new Date();
-  const currentYearStr = today.getFullYear().toString();
-  const currentMonthStr = String(today.getMonth() + 1).padStart(2, "0");
+  const today = useMemo(() => new Date(), []);
+  const currentYearStr = useMemo(() => today.getFullYear().toString(), [today]);
+  const currentMonthStr = useMemo(
+    () => String(today.getMonth() + 1).padStart(2, "0"),
+    [today]
+  );
 
   const [selectedYear, setSelectedYear] = useState<string>(currentYearStr);
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthStr);
@@ -91,64 +92,50 @@ export default function ActivityPage() {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-      setPage(1); // reset to page 1 on search change
+      setPage(1);
     }, 300);
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  const fetchExpenses = useCallback(async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-      });
+  // TanStack Query with caching across page transitions
+  const queryParams = useMemo(
+    () => ({
+      page,
+      limit,
+      year: selectedYear,
+      month: selectedMonth,
+      category: selectedCategory,
+      search: debouncedSearch,
+    }),
+    [page, limit, selectedYear, selectedMonth, selectedCategory, debouncedSearch]
+  );
 
-      if (selectedYear && selectedYear !== "all") {
-        params.append("year", selectedYear);
-      }
-      if (selectedMonth && selectedMonth !== "all") {
-        params.append("month", selectedMonth);
-      }
-      if (selectedCategory && selectedCategory !== "All") {
-        params.append("category", selectedCategory);
-      }
-      if (debouncedSearch && debouncedSearch.trim() !== "") {
-        params.append("search", debouncedSearch.trim());
-      }
+  const { data: queryData, isLoading: loading } = useExpensesQuery(queryParams);
+  const { invalidateExpenses } = useInvalidateData();
 
-      const res = await axios.get(`/api/expenses?${params.toString()}`);
-      if (res.data && res.data.expenses) {
-        setExpenses(res.data.expenses);
-        setTotalCount(res.data.total || 0);
-        setTotalPages(res.data.totalPages || 1);
-        setTotalFilteredAmount(res.data.totalAmount || 0);
-        if (res.data.categories && res.data.categories.length > 0) {
-          setCategoriesList(["All", ...res.data.categories]);
-        }
-      } else if (Array.isArray(res.data)) {
-        setExpenses(res.data);
-        setTotalCount(res.data.length);
-        setTotalPages(1);
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to load transactions");
-    } finally {
-      setLoading(false);
+  const expenses = useMemo(() => {
+    if (queryData?.expenses) return queryData.expenses;
+    if (Array.isArray(queryData)) return queryData;
+    return [];
+  }, [queryData]);
+
+  const totalCount = queryData?.total || (Array.isArray(queryData) ? queryData.length : 0);
+  const totalPages = queryData?.totalPages || 1;
+  const totalFilteredAmount = queryData?.totalAmount || 0;
+  const rawCategories = queryData?.categories;
+  const categoriesList = useMemo(() => {
+    if (rawCategories && rawCategories.length > 0) {
+      return ["All", ...rawCategories];
     }
-  }, [page, selectedYear, selectedMonth, selectedCategory, debouncedSearch]);
-
-  useEffect(() => {
-    fetchExpenses();
-  }, [fetchExpenses]);
+    return ["All"];
+  }, [rawCategories]);
 
   const deleteExpense = async (id: string) => {
     if (!confirm("Are you sure you want to delete this expense?")) return;
     try {
       await axios.delete(`/api/expenses/${id}`);
       toast.success("Expense deleted successfully");
-      fetchExpenses();
+      invalidateExpenses();
     } catch {
       toast.error("Failed to delete expense");
     }
@@ -178,37 +165,44 @@ export default function ActivityPage() {
   const endRecord = Math.min(page * limit, totalCount);
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto pb-20 animate-in fade-in duration-500">
+    <div className="space-y-6 max-w-6xl mx-auto pb-20 animate-in fade-in duration-300">
+      {/* Breadcrumb */}
+      <Breadcrumb
+        items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Activity History" },
+        ]}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-6">
         <div>
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground mb-3 transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </Link>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground flex items-center gap-3">
-            <span className="p-2.5 bg-primary/10 border border-primary/20 text-primary rounded-2xl">
-              <Activity className="w-6 h-6" />
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground flex items-center gap-2.5 sm:gap-3">
+            <span className="p-2 sm:p-2.5 bg-primary/10 border border-primary/20 text-primary rounded-xl sm:rounded-2xl">
+              <Activity className="w-5 h-5 sm:w-6 sm:h-6" />
             </span>
             All Activity & Transactions
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Browse, search, and manage your complete transaction history.
           </p>
         </div>
 
         <div className="bg-card border border-border px-5 py-3 rounded-2xl flex items-center gap-4 shadow-sm self-start sm:self-auto">
           <div>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Total Records</p>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              Total Records
+            </p>
             <p className="text-lg font-black text-foreground">{totalCount}</p>
           </div>
           <div className="w-px h-8 bg-border" />
           <div>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Total Spent</p>
-            <p className="text-lg font-black text-primary">{formatCurrency(totalFilteredAmount)}</p>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              Total Spent
+            </p>
+            <p className="text-lg font-black text-primary">
+              {formatCurrency(totalFilteredAmount)}
+            </p>
           </div>
         </div>
       </div>
@@ -258,7 +252,7 @@ export default function ActivityPage() {
           </select>
         </div>
 
-        {/* Category Selector (All Broad + Custom + Expenses) */}
+        {/* Category Selector */}
         <div className="relative sm:col-span-1 lg:col-span-3">
           <Filter className="w-4 h-4 text-muted-foreground absolute left-4 top-3.5 pointer-events-none" />
           <select
@@ -296,7 +290,7 @@ export default function ActivityPage() {
 
       {/* Transactions Table Card */}
       <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden shadow-xl">
-        {loading ? (
+        {loading && !queryData ? (
           <div className="p-16 text-center flex flex-col items-center justify-center gap-3 text-muted-foreground">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
             <span className="font-semibold text-sm">Loading transactions...</span>
@@ -330,7 +324,7 @@ export default function ActivityPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {expenses.map((exp) => {
+                {expenses.map((exp: any) => {
                   const Icon = getCategoryIcon(exp.category);
                   const color = getCategoryColor(exp.category);
 
@@ -340,10 +334,14 @@ export default function ActivityPage() {
                         {formatDate(exp.date)}
                       </td>
                       <td className="p-4 font-bold text-foreground">
-                        {exp.note || <span className="text-muted-foreground italic font-normal">No note</span>}
+                        {exp.note || (
+                          <span className="text-muted-foreground italic font-normal">No note</span>
+                        )}
                       </td>
                       <td className="p-4">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold ${color.bg} ${color.text} border ${color.border}`}>
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold ${color.bg} ${color.text} border ${color.border}`}
+                        >
                           <Icon className="w-3.5 h-3.5" />
                           {exp.category}
                         </span>
@@ -414,23 +412,25 @@ export default function ActivityPage() {
       </div>
 
       {/* Edit Expense Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingExpense(null);
-        }}
-        title="Edit Expense"
-      >
-        <AddExpenseForm
-          initialData={editingExpense}
-          onSuccess={() => {
+      {isModalOpen && (
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => {
             setIsModalOpen(false);
             setEditingExpense(null);
-            fetchExpenses();
           }}
-        />
-      </Modal>
+          title="Edit Expense"
+        >
+          <AddExpenseForm
+            initialData={editingExpense}
+            onSuccess={() => {
+              setIsModalOpen(false);
+              setEditingExpense(null);
+              invalidateExpenses();
+            }}
+          />
+        </Modal>
+      )}
     </div>
   );
 }

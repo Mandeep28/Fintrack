@@ -53,14 +53,14 @@ export const categoryIcons: Record<string, LucideIcon> = {
 export const categoryColors: Record<string, { bg: string; text: string; border: string }> = {
   "Food": { bg: "bg-amber-500/10", text: "text-amber-500", border: "border-amber-500/20" },
   "Travel": { bg: "bg-blue-500/10", text: "text-blue-500", border: "border-blue-500/20" },
-  "Bills & Utilities": { bg: "bg-purple-500/10", text: "text-purple-500", border: "border-purple-500/20" },
+  "Bills & Utilities": { bg: "bg-cyan-500/10", text: "text-cyan-500", border: "border-cyan-500/20" },
   "Shopping": { bg: "bg-pink-500/10", text: "text-pink-500", border: "border-pink-500/20" },
   "Entertainment": { bg: "bg-emerald-500/10", text: "text-emerald-500", border: "border-emerald-500/20" },
   "Health": { bg: "bg-rose-500/10", text: "text-rose-500", border: "border-rose-500/20" },
   "Savings": { bg: "bg-emerald-500/10", text: "text-emerald-500", border: "border-emerald-500/20" },
-  "Debt & Loans": { bg: "bg-violet-500/10", text: "text-violet-500", border: "border-violet-500/20" },
-  "Loan": { bg: "bg-violet-500/10", text: "text-violet-500", border: "border-violet-500/20" },
-  "Debt": { bg: "bg-violet-500/10", text: "text-violet-500", border: "border-violet-500/20" },
+  "Debt & Loans": { bg: "bg-cyan-500/10", text: "text-cyan-500", border: "border-cyan-500/20" },
+  "Loan": { bg: "bg-cyan-500/10", text: "text-cyan-500", border: "border-cyan-500/20" },
+  "Debt": { bg: "bg-cyan-500/10", text: "text-cyan-500", border: "border-cyan-500/20" },
   "Electronics": { bg: "bg-cyan-500/10", text: "text-cyan-500", border: "border-cyan-500/20" },
   "Other": { bg: "bg-slate-500/10", text: "text-slate-400", border: "border-slate-500/20" },
 };

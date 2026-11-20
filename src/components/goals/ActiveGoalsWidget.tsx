@@ -123,7 +123,7 @@ export default function ActiveGoalsWidget({
                         className={cn(
                           "text-[10px] font-black px-2 py-0.5 rounded-lg",
                           isDebt
-                            ? "bg-violet-500/10 text-violet-500 border border-violet-500/20"
+                            ? "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20"
                             : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
                         )}
                       >
@@ -147,7 +147,7 @@ export default function ActiveGoalsWidget({
                     <div
                       className={cn(
                         "h-full rounded-full transition-all duration-500",
-                        isDebt ? "bg-violet-500" : "bg-emerald-500"
+                        isDebt ? "bg-cyan-500" : "bg-emerald-500"
                       )}
                       style={{ width: `${Math.min(item.percentage, 100)}%` }}
                     />

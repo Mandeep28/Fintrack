@@ -64,7 +64,7 @@ export default function GoalCard({
         isCompleted
           ? "border-emerald-500/40 bg-emerald-500/[0.02]"
           : isDebt
-          ? "border-border hover:border-violet-500/50"
+          ? "border-border hover:border-cyan-500/50"
           : "border-border hover:border-primary/50"
       )}
     >
@@ -76,7 +76,7 @@ export default function GoalCard({
               className={cn(
                 "inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-bold tracking-tight",
                 isDebt
-                  ? "bg-violet-500/10 text-violet-500 border border-violet-500/20"
+                  ? "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20"
                   : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
               )}
             >
@@ -151,7 +151,7 @@ export default function GoalCard({
                 isCompleted
                   ? "text-emerald-500"
                   : isDebt
-                  ? "text-violet-400"
+                  ? "text-cyan-600 dark:text-cyan-400"
                   : "text-primary"
               )}
             >
@@ -172,8 +172,8 @@ export default function GoalCard({
                 isCompleted
                   ? "bg-emerald-500"
                   : isDebt
-                  ? "bg-gradient-to-r from-violet-600 to-indigo-500"
-                  : "bg-gradient-to-r from-blue-500 to-emerald-400"
+                  ? "bg-cyan-500"
+                  : "bg-emerald-500"
               )}
               style={{ width: `${Math.min(goal.percentage, 100)}%` }}
             />
@@ -190,7 +190,7 @@ export default function GoalCard({
             isCompleted
               ? "bg-secondary hover:bg-secondary/80 text-foreground border border-border"
               : isDebt
-              ? "bg-violet-600 hover:bg-violet-700 text-white shadow-violet-500/20"
+              ? "bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold shadow-cyan-500/20"
               : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/20"
           )}
         >

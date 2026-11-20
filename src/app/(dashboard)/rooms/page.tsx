@@ -1,37 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import axios from "axios";
+import { useMemo } from "react";
 import Link from "next/link";
 import { Users, Plus, ArrowRight, MessageSquare } from "lucide-react";
+import { useRoomsQuery } from "@/hooks/useQueries";
 
 export default function RoomsPage() {
-  const [rooms, setRooms] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchRooms = async () => {
-      try {
-        const res = await axios.get("/api/rooms");
-        setRooms(res.data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchRooms();
-  }, []);
+  const { data: rawRooms, isLoading: loading } = useRoomsQuery();
+  const rooms = useMemo(() => (Array.isArray(rawRooms) ? rawRooms : []), [rawRooms]);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-16">
+    <div className="space-y-8 animate-in fade-in duration-300 pb-16">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-border pb-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">My Rooms</h1>
-          <p className="text-muted-foreground text-sm md:text-base mt-1">Manage shared expenses with your friends and family.</p>
+          <p className="text-muted-foreground text-sm md:text-base mt-1">
+            Manage shared expenses with your friends and family.
+          </p>
         </div>
         <Link 
           href="/rooms/new"
+          prefetch={true}
           className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3.5 rounded-2xl font-bold shadow-lg shadow-primary/20 transition-all w-full sm:w-fit cursor-pointer text-sm"
         >
           <Plus className="w-5 h-5" />
@@ -40,7 +29,7 @@ export default function RoomsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {loading ? (
+        {loading && rooms.length === 0 ? (
           [1, 2, 3].map((i) => (
             <div key={i} className="bg-card border border-border rounded-3xl p-6 h-48 animate-pulse" />
           ))
@@ -53,6 +42,7 @@ export default function RoomsPage() {
              <p className="text-muted-foreground mb-6">Create your first room to start splitting expenses.</p>
              <Link 
                 href="/rooms/new"
+                prefetch={true}
                 className="text-primary font-bold hover:underline transition-colors"
               >
                 Create a room now &rarr;
@@ -63,6 +53,7 @@ export default function RoomsPage() {
             <Link 
               key={room.id}
               href={`/rooms/${room.id}`}
+              prefetch={true}
               className="bg-card border border-border rounded-3xl p-6 hover:border-primary/50 hover:shadow-xl transition-all group"
             >
               <div className="flex justify-between items-start mb-4">
@@ -70,7 +61,7 @@ export default function RoomsPage() {
                   <Users className="w-6 h-6" />
                 </div>
                 <div className="bg-secondary text-muted-foreground px-3 py-1 rounded-full text-xs font-semibold">
-                  {room._count.members} Members
+                  {room._count?.members || 0} Members
                 </div>
               </div>
               <h3 className="text-xl font-bold text-foreground mb-2 group-hover:text-primary transition-colors">{room.name}</h3>

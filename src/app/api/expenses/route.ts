@@ -125,10 +125,12 @@ export async function GET(req: Request) {
       });
     }
 
-    // Unpaginated request (for dashboard or rooms that request full list)
+    // Unpaginated request (supports optional limit e.g. for dashboard recent activity)
+    const limitNum = limit ? Math.max(1, parseInt(limit, 10)) : undefined;
     const expenses = await prisma.expense.findMany({
       where,
       orderBy: { date: "desc" },
+      ...(limitNum ? { take: limitNum } : {}),
     });
 
     return NextResponse.json(expenses);

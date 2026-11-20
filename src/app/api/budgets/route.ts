@@ -26,16 +26,32 @@ export async function GET(req: Request) {
     const monthStart = startOfMonth(date);
     const monthEnd = endOfMonth(date);
 
-    // 1. Fetch user's budgets for this month (or global/null month)
-    const budgets = await prisma.budget.findMany({
-      where: {
-        userId: session.user.id,
-        OR: [
-          { month: monthParam },
-          { month: null }
-        ],
-      },
-    });
+    // Fetch user's budgets, custom categories, and monthly expenses in parallel
+    const [budgets, userCustomCategories, expenses] = await Promise.all([
+      prisma.budget.findMany({
+        where: {
+          userId: session.user.id,
+          OR: [
+            { month: monthParam },
+            { month: null }
+          ],
+        },
+      }),
+      prisma.category.findMany({
+        where: { userId: session.user.id },
+        select: { name: true },
+      }),
+      prisma.expense.findMany({
+        where: {
+          userId: session.user.id,
+          roomId: null, // Personal expenses
+          date: {
+            gte: monthStart,
+            lte: monthEnd,
+          },
+        },
+      }),
+    ]);
 
     // Create a map of category -> budget amount (month-specific takes precedence)
     const budgetMap = new Map<string, number>();
@@ -44,24 +60,6 @@ export async function GET(req: Request) {
         budgetMap.set(b.category, Number(b.amount));
       }
     }
-
-    // 2. Fetch all user's custom categories
-    const userCustomCategories = await prisma.category.findMany({
-      where: { userId: session.user.id },
-      select: { name: true },
-    });
-
-    // 3. Fetch all personal expenses for this user in this month
-    const expenses = await prisma.expense.findMany({
-      where: {
-        userId: session.user.id,
-        roomId: null, // Personal expenses
-        date: {
-          gte: monthStart,
-          lte: monthEnd,
-        },
-      },
-    });
 
     // Calculate spent per category
     const spentMap = new Map<string, number>();

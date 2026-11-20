@@ -105,7 +105,7 @@ export default function CategoryBudgetCard({ onBudgetChange, refreshTrigger }: C
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-purple-600/10 border border-purple-500/20 text-purple-400 rounded-2xl">
+          <div className="p-3 bg-primary/10 border border-primary/20 text-primary rounded-2xl">
             <Target className="w-5 h-5" />
           </div>
           <div>
@@ -125,7 +125,7 @@ export default function CategoryBudgetCard({ onBudgetChange, refreshTrigger }: C
               Budget Allocated
             </span>
             <span className="text-base font-black text-white">
-              {formatCurrency(data.totalSpent)} / <span className="text-purple-400">{formatCurrency(data.totalBudget)}</span>
+              {formatCurrency(data.totalSpent)} / <span className="text-primary">{formatCurrency(data.totalBudget)}</span>
             </span>
           </div>
         )}
@@ -274,7 +274,7 @@ export default function CategoryBudgetCard({ onBudgetChange, refreshTrigger }: C
                 value={budgetInput}
                 onChange={(e) => setBudgetInput(e.target.value)}
                 placeholder="e.g. 2000"
-                className="w-full bg-slate-800 border border-slate-700 text-white rounded-2xl pl-11 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all font-bold text-2xl"
+                className="w-full bg-slate-800 border border-slate-700 text-white rounded-2xl pl-11 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-bold text-2xl"
               />
             </div>
           </div>
@@ -299,7 +299,7 @@ export default function CategoryBudgetCard({ onBudgetChange, refreshTrigger }: C
           <button
             type="submit"
             disabled={saving}
-            className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-purple-600/20 transition-all flex items-center justify-center gap-2 mt-4 text-sm"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-4 rounded-2xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 mt-4 text-sm"
           >
             {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : "Save Category Budget"}
           </button>

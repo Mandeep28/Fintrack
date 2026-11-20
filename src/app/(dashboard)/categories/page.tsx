@@ -1,24 +1,34 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import axios from "axios";
-import Link from "next/link";
-import { 
-  Target, 
-  Pencil, 
-  Loader2, 
-  ArrowLeft, 
+import dynamic from "next/dynamic";
+import {
+  Target,
+  Pencil,
+  Loader2,
   AlertTriangle,
   FolderPlus,
   Calendar,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Tag,
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import { getCategoryIcon, getCategoryColor } from "@/lib/icons";
 import Modal from "@/components/ui/Modal";
-import BudgetExceededModal from "@/components/budget/BudgetExceededModal";
 import { toast } from "sonner";
+import { useBudgetsQuery, useInvalidateData } from "@/hooks/useQueries";
+import Breadcrumb from "@/components/ui/Breadcrumb";
+
+const BudgetExceededModal = dynamic(
+  () => import("@/components/budget/BudgetExceededModal"),
+  { ssr: false }
+);
+const CategoryKeywordsModal = dynamic(
+  () => import("@/components/category/CategoryKeywordsModal"),
+  { ssr: false }
+);
 
 interface CategoryBudgetItem {
   category: string;
@@ -27,13 +37,6 @@ interface CategoryBudgetItem {
   remaining: number | null;
   percentage: number;
   status: "normal" | "warning" | "exceeded" | "no_budget";
-}
-
-interface BudgetData {
-  month: string;
-  totalBudget: number;
-  totalSpent: number;
-  categories: CategoryBudgetItem[];
 }
 
 const MONTHS = [
@@ -55,19 +58,23 @@ const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 6 }, (_, i) => currentYear - i);
 
 export default function CategoriesPage() {
-  const [data, setData] = useState<BudgetData | null>(null);
-  const [loading, setLoading] = useState(true);
-
   // Month and Year state
-  const today = new Date();
-  const currentYearStr = today.getFullYear().toString();
-  const currentMonthStr = String(today.getMonth() + 1).padStart(2, "0");
+  const today = useMemo(() => new Date(), []);
+  const currentYearStr = useMemo(() => today.getFullYear().toString(), [today]);
+  const currentMonthStr = useMemo(
+    () => String(today.getMonth() + 1).padStart(2, "0"),
+    [today]
+  );
 
   const [selectedYear, setSelectedYear] = useState(currentYearStr);
   const [selectedMonth, setSelectedMonth] = useState(currentMonthStr);
 
   const monthQuery = `${selectedYear}-${selectedMonth}`;
   const isCurrentMonth = selectedYear === currentYearStr && selectedMonth === currentMonthStr;
+
+  // TanStack Query for instantaneous SPA cache & background revalidation
+  const { data, isLoading } = useBudgetsQuery(monthQuery);
+  const { invalidateBudgets } = useInvalidateData();
 
   // Edit budget modal state
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
@@ -84,6 +91,10 @@ export default function CategoriesPage() {
   // Exceeded alert modal state
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [selectedExceededItem, setSelectedExceededItem] = useState<CategoryBudgetItem | null>(null);
+
+  // Keywords management modal state
+  const [isKeywordsModalOpen, setIsKeywordsModalOpen] = useState(false);
+  const [selectedKeywordCategory, setSelectedKeywordCategory] = useState<string | null>(null);
 
   const monthName = useMemo(() => {
     const mIndex = parseInt(selectedMonth, 10) - 1;
@@ -108,30 +119,13 @@ export default function CategoriesPage() {
     let m = parseInt(selectedMonth, 10);
     m += 1;
     if (m > 12) {
-      if (y >= currentYear) return; // Year cannot exceed current year
+      if (y >= currentYear) return;
       m = 1;
       y += 1;
     }
     setSelectedYear(y.toString());
     setSelectedMonth(String(m).padStart(2, "0"));
   };
-
-  const fetchBudgets = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get(`/api/budgets?month=${monthQuery}`);
-      setData(res.data);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to load categories and budgets");
-    } finally {
-      setLoading(false);
-    }
-  }, [monthQuery]);
-
-  useEffect(() => {
-    fetchBudgets();
-  }, [fetchBudgets]);
 
   const handleOpenBudgetModal = (category: string, currentBudget: number | null) => {
     setEditingCategory(category);
@@ -158,7 +152,7 @@ export default function CategoriesPage() {
 
       toast.success(`Budget for ${editingCategory} saved for ${monthName}`);
       setIsBudgetModalOpen(false);
-      fetchBudgets();
+      invalidateBudgets();
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Failed to update budget");
     } finally {
@@ -192,7 +186,7 @@ export default function CategoriesPage() {
       setIsNewCategoryModalOpen(false);
       setNewCategoryName("");
       setNewCategoryBudget("");
-      fetchBudgets();
+      invalidateBudgets();
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Failed to create category");
     } finally {
@@ -200,38 +194,54 @@ export default function CategoriesPage() {
     }
   };
 
-  const exceededList = data?.categories.filter((c) => c.status === "exceeded") || [];
+  const categories = useMemo(() => (data?.categories || []) as CategoryBudgetItem[], [data]);
+  const exceededList = useMemo(() => categories.filter((c) => c.status === "exceeded"), [categories]);
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto pb-20 animate-in fade-in duration-500">
+    <div className="space-y-6 max-w-6xl mx-auto pb-20 animate-in fade-in duration-300">
+      {/* Breadcrumb */}
+      <Breadcrumb
+        items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Categories & Budgets" },
+        ]}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-6">
         <div>
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground mb-3 transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </Link>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground flex items-center gap-3">
-            <span className="p-2.5 bg-primary/10 border border-primary/20 text-primary rounded-2xl">
-              <Target className="w-6 h-6" />
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground flex items-center gap-2.5 sm:gap-3">
+            <span className="p-2 sm:p-2.5 bg-primary/10 border border-primary/20 text-primary rounded-xl sm:rounded-2xl">
+              <Target className="w-5 h-5 sm:w-6 sm:h-6" />
             </span>
             Categories & Budgets
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage spending limits and track targets for <span className="font-bold text-foreground">{monthName}</span>.
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            Manage spending limits and track targets for{" "}
+            <span className="font-bold text-foreground">{monthName}</span>.
           </p>
         </div>
 
-        <button
-          onClick={() => setIsNewCategoryModalOpen(true)}
-          className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-6 py-3.5 rounded-2xl shadow-lg shadow-primary/20 transition-all text-sm self-start sm:self-auto cursor-pointer"
-        >
-          <FolderPlus className="w-5 h-5" />
-          Add Custom Category
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={() => {
+              setSelectedKeywordCategory(null);
+              setIsKeywordsModalOpen(true);
+            }}
+            className="flex items-center justify-center gap-2 bg-secondary hover:bg-secondary/80 border border-border text-foreground font-semibold px-4 py-2 sm:px-4 sm:py-2.5 rounded-xl shadow-xs transition-all text-xs sm:text-sm cursor-pointer"
+          >
+            <Tag className="w-4 h-4 text-primary" />
+            <span>Manage Keywords</span>
+          </button>
+
+          <button
+            onClick={() => setIsNewCategoryModalOpen(true)}
+            className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-4 py-2 sm:px-4 sm:py-2.5 rounded-xl shadow-md shadow-primary/20 transition-all text-xs sm:text-sm cursor-pointer"
+          >
+            <FolderPlus className="w-4 h-4 sm:w-4 sm:h-4" />
+            <span>Add Custom Category</span>
+          </button>
+        </div>
       </div>
 
       {/* Month & Year Selector Bar */}
@@ -304,22 +314,34 @@ export default function CategoriesPage() {
       {data && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-card border border-border rounded-3xl p-5 shadow-sm">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Total Month Spend</p>
-            <p className="text-2xl font-black text-foreground">{formatCurrency(data.totalSpent)}</p>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
+              Total Month Spend
+            </p>
+            <p className="text-2xl font-black text-foreground">
+              {formatCurrency(data.totalSpent)}
+            </p>
           </div>
           <div className="bg-card border border-border rounded-3xl p-5 shadow-sm">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Allocated Budget</p>
-            <p className="text-2xl font-black text-purple-400">{formatCurrency(data.totalBudget)}</p>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
+              Allocated Budget
+            </p>
+            <p className="text-2xl font-black text-primary">
+              {formatCurrency(data.totalBudget)}
+            </p>
           </div>
           <div className="bg-card border border-border rounded-3xl p-5 shadow-sm">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Total Categories</p>
-            <p className="text-2xl font-black text-foreground">{data.categories.length}</p>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
+              Total Categories
+            </p>
+            <p className="text-2xl font-black text-foreground">
+              {categories.length}
+            </p>
           </div>
         </div>
       )}
 
-      {/* Categories Grid - Clean & Simple Redesign */}
-      {loading ? (
+      {/* Categories Grid */}
+      {isLoading && !data ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-pulse">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="h-44 bg-card rounded-3xl border border-border" />
@@ -327,7 +349,7 @@ export default function CategoriesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {data?.categories.map((item) => {
+          {categories.map((item) => {
             const Icon = getCategoryIcon(item.category);
             const color = getCategoryColor(item.category);
             const hasBudget = item.budget !== null && item.budget > 0;
@@ -349,7 +371,13 @@ export default function CategoriesPage() {
                   {/* Category Header Row */}
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className={cn("w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-sm", color.bg, color.text)}>
+                      <div
+                        className={cn(
+                          "w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-sm",
+                          color.bg,
+                          color.text
+                        )}
+                      >
                         <Icon className="w-5 h-5" />
                       </div>
                       <div className="min-w-0">
@@ -376,12 +404,24 @@ export default function CategoriesPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       {item.status === "exceeded" && (
                         <span className="text-[11px] font-bold px-2.5 py-1 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20">
                           Over Limit
                         </span>
                       )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedKeywordCategory(item.category);
+                          setIsKeywordsModalOpen(true);
+                        }}
+                        className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all cursor-pointer"
+                        title={`Manage recognition keywords for ${item.category}`}
+                      >
+                        <Tag className="w-3.5 h-3.5" />
+                      </button>
                       {hasBudget && (
                         <div
                           className="p-2 rounded-xl text-muted-foreground group-hover:text-foreground bg-secondary/80 hover:bg-secondary transition-all"
@@ -486,7 +526,9 @@ export default function CategoriesPage() {
           </div>
 
           <div>
-            <span className="text-xs text-muted-foreground font-semibold block mb-2">Quick Presets:</span>
+            <span className="text-xs text-muted-foreground font-semibold block mb-2">
+              Quick Presets:
+            </span>
             <div className="flex flex-wrap gap-2">
               {[1000, 2000, 3000, 5000, 10000].map((preset) => (
                 <button
@@ -506,7 +548,11 @@ export default function CategoriesPage() {
             disabled={savingBudget}
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-4 rounded-2xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 mt-4 text-sm cursor-pointer"
           >
-            {savingBudget ? <Loader2 className="w-5 h-5 animate-spin" /> : "Save Budget"}
+            {savingBudget ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              "Save Budget"
+            )}
           </button>
         </form>
       </Modal>
@@ -558,24 +604,40 @@ export default function CategoriesPage() {
             disabled={savingCategory}
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-4 rounded-2xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 mt-4 text-sm cursor-pointer"
           >
-            {savingCategory ? <Loader2 className="w-5 h-5 animate-spin" /> : "Create Category"}
+            {savingCategory ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              "Create Category"
+            )}
           </button>
         </form>
       </Modal>
 
       {/* Budget Exceeded Alert Modal */}
-      <BudgetExceededModal
-        isOpen={isAlertModalOpen}
-        onClose={() => {
-          setIsAlertModalOpen(false);
-          setSelectedExceededItem(null);
-        }}
-        exceededCategories={
-          selectedExceededItem
-            ? [selectedExceededItem]
-            : exceededList
-        }
-      />
+      {isAlertModalOpen && (
+        <BudgetExceededModal
+          isOpen={isAlertModalOpen}
+          onClose={() => {
+            setIsAlertModalOpen(false);
+            setSelectedExceededItem(null);
+          }}
+          exceededCategories={
+            selectedExceededItem ? [selectedExceededItem] : exceededList
+          }
+        />
+      )}
+
+      {/* Category Recognition Keywords Modal */}
+      {isKeywordsModalOpen && (
+        <CategoryKeywordsModal
+          isOpen={isKeywordsModalOpen}
+          onClose={() => {
+            setIsKeywordsModalOpen(false);
+            setSelectedKeywordCategory(null);
+          }}
+          initialCategory={selectedKeywordCategory}
+        />
+      )}
     </div>
   );
 }

@@ -80,10 +80,11 @@ export async function GET(req: Request) {
       };
     });
 
-    // Compute overall summary statistics for all user goals (not filtered by query)
-    const allUserGoals = await prisma.goal.findMany({
-      where: { userId: session.user.id },
-    });
+    // Compute overall summary statistics for all user goals (reuse goals when unfiltered)
+    const hasFilter = Boolean(typeFilter || statusFilter);
+    const allUserGoals = hasFilter
+      ? await prisma.goal.findMany({ where: { userId: session.user.id } })
+      : goals;
 
     let totalTarget = 0;
     let totalCurrent = 0;

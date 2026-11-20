@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import AuthProvider from "@/components/providers/AuthProvider";
+import QueryProvider from "@/components/providers/QueryProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import TopLoadingBar from "@/components/layout/TopLoadingBar";
@@ -19,6 +20,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "FinTrack | Smart Finance Tracker",
   description: "Track your personal and shared expenses with ease",
+  icons: {
+    icon: [
+      { url: "/images/logo-icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    shortcut: "/images/logo-icon.svg",
+    apple: "/images/logo-icon.svg",
+  },
 };
 
 export default function RootLayout({
@@ -39,8 +48,10 @@ export default function RootLayout({
         >
           <TopLoadingBar />
           <AuthProvider>
-            {children}
-            <Toaster richColors closeButton position="top-right" />
+            <QueryProvider>
+              {children}
+              <Toaster richColors closeButton position="top-right" />
+            </QueryProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

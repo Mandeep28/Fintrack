@@ -26,22 +26,18 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { expenses } = bulkExpenseSchema.parse(body);
 
-    const created = await prisma.$transaction(
-      expenses.map((exp) =>
-        prisma.expense.create({
-          data: {
-            amount: exp.amount,
-            category: exp.category,
-            note: exp.note || null,
-            date: new Date(exp.date),
-            userId: session.user.id,
-            roomId: exp.roomId || null,
-          },
-        })
-      )
-    );
+    const result = await prisma.expense.createMany({
+      data: expenses.map((exp) => ({
+        amount: exp.amount,
+        category: exp.category,
+        note: exp.note || null,
+        date: new Date(exp.date),
+        userId: session.user.id,
+        roomId: exp.roomId || null,
+      })),
+    });
 
-    return NextResponse.json({ count: created.length, expenses: created }, { status: 201 });
+    return NextResponse.json({ count: result.count }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ message: error.issues[0].message }, { status: 400 });

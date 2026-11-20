@@ -95,7 +95,7 @@ export default function GoalDetailsModal({
             <span
               className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold ${
                 isDebt
-                  ? "bg-violet-500/10 text-violet-500 border border-violet-500/20"
+                  ? "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20"
                   : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
               }`}
             >
@@ -149,14 +149,14 @@ export default function GoalDetailsModal({
                   isCompleted
                     ? "bg-emerald-500"
                     : isDebt
-                    ? "bg-violet-500"
+                    ? "bg-cyan-500"
                     : "bg-primary"
                 }`}
                 style={{ width: `${Math.min(goal.percentage, 100)}%` }}
               />
             </div>
             <div className="flex justify-between items-center text-xs font-semibold">
-              <span className={isDebt ? "text-violet-400" : "text-emerald-400"}>
+              <span className={isDebt ? "text-cyan-600 dark:text-cyan-400" : "text-emerald-400"}>
                 {goal.percentage}% {isDebt ? "paid off" : "saved"}
               </span>
               <span className="text-muted-foreground">

@@ -102,7 +102,7 @@ export default function AddContributionModal({
           <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-300 ${
-                isDebt ? "bg-violet-500" : "bg-emerald-500"
+                isDebt ? "bg-cyan-500" : "bg-emerald-500"
               }`}
               style={{ width: `${Math.min(goal.percentage, 100)}%` }}
             />

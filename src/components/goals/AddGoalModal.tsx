@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import Modal from "@/components/ui/Modal";
-import { Loader2, PiggyBank, CreditCard, Sparkles } from "lucide-react";
+import { Loader2, PiggyBank, CreditCard, Sparkles, Sliders, Calendar, Zap } from "lucide-react";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface Goal {
@@ -55,6 +56,45 @@ export default function AddGoalModal({
   const [deadline, setDeadline] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [simulatedMonthly, setSimulatedMonthly] = useState<number>(5000);
+  const [now, setNow] = useState(0);
+
+  useEffect(() => {
+    setNow(Date.now());
+  }, [isOpen]);
+
+  // Compute remaining balance to forecast
+  const targetVal = parseFloat(targetAmount) || 0;
+  const currentVal = isEditing ? (initialGoal?.currentAmount || 0) : (parseFloat(initialAmount) || 0);
+  const remainingVal = Math.max(0, targetVal - currentVal);
+
+  // Dynamic slider range
+  const minSliderMonthly = useMemo(() => {
+    if (remainingVal <= 0) return 500;
+    return Math.max(500, Math.round(remainingVal / 48 / 100) * 100);
+  }, [remainingVal]);
+
+  const maxSliderMonthly = useMemo(() => {
+    if (remainingVal <= 0) return 25000;
+    return Math.max(minSliderMonthly * 3, Math.min(100000, Math.round(remainingVal / 2 / 500) * 500));
+  }, [remainingVal, minSliderMonthly]);
+
+  const sliderStep = useMemo(() => {
+    if (maxSliderMonthly - minSliderMonthly > 20000) return 1000;
+    if (maxSliderMonthly - minSliderMonthly > 5000) return 500;
+    return 100;
+  }, [minSliderMonthly, maxSliderMonthly]);
+
+  // Sync default simulated pace when goal target changes
+  useEffect(() => {
+    if (remainingVal > 0) {
+      const defaultPace = Math.max(
+        minSliderMonthly,
+        Math.min(maxSliderMonthly, Math.round(remainingVal / 12 / 500) * 500 || 2500)
+      );
+      setSimulatedMonthly(defaultPace);
+    }
+  }, [remainingVal, minSliderMonthly, maxSliderMonthly]);
 
   useEffect(() => {
     if (initialGoal) {
@@ -80,6 +120,47 @@ export default function AddGoalModal({
       setNote("");
     }
   }, [initialGoal, isOpen]);
+
+  // Quick Preset Chips for interactive simulation
+  const presetChips = useMemo(() => {
+    if (remainingVal <= 0) return [1000, 2500, 5000, 10000];
+    const p1 = Math.max(minSliderMonthly, Math.round(remainingVal / 24 / 500) * 500 || 1000);
+    const p2 = Math.max(minSliderMonthly, Math.round(remainingVal / 12 / 500) * 500 || 2500);
+    const p3 = Math.max(minSliderMonthly, Math.round(remainingVal / 6 / 500) * 500 || 5000);
+    const p4 = Math.min(maxSliderMonthly, Math.round(remainingVal / 3 / 500) * 500 || 10000);
+    return Array.from(new Set([p1, p2, p3, p4])).sort((a, b) => a - b);
+  }, [remainingVal, minSliderMonthly, maxSliderMonthly]);
+
+  // Interactive What-If Simulation Projection
+  const whatIfForecast = useMemo(() => {
+    if (remainingVal <= 0 || simulatedMonthly <= 0 || !now) return null;
+
+    const monthsNeeded = remainingVal / simulatedMonthly;
+    const daysNeeded = Math.round(monthsNeeded * 30.4);
+    const estDate = new Date(now + daysNeeded * 24 * 60 * 60 * 1000);
+    const dateStr = estDate.toISOString().slice(0, 10);
+
+    let comparison = null;
+    if (deadline) {
+      const manualTime = new Date(deadline).getTime();
+      const timeDiffDays = Math.round((manualTime - estDate.getTime()) / (1000 * 60 * 60 * 24));
+      const monthsDiff = Math.round((Math.abs(timeDiffDays) / 30.4) * 10) / 10;
+      comparison = {
+        timeDiffDays,
+        monthsDiff,
+        isFaster: timeDiffDays > 5,
+        isSlower: timeDiffDays < -5,
+      };
+    }
+
+    return {
+      monthsNeeded: Math.round(monthsNeeded * 10) / 10,
+      daysNeeded,
+      estDate,
+      dateStr,
+      comparison,
+    };
+  }, [remainingVal, simulatedMonthly, now, deadline]);
 
   // When type changes on a new goal, switch default category appropriately
   const handleTypeChange = (newType: "SAVINGS" | "DEBT") => {
@@ -184,12 +265,12 @@ export default function AddGoalModal({
               onClick={() => handleTypeChange("DEBT")}
               className={`p-3.5 rounded-2xl border flex flex-col items-center gap-2 text-center transition-all cursor-pointer ${
                 type === "DEBT"
-                  ? "bg-violet-500/10 border-violet-500/40 text-violet-500 shadow-sm font-bold ring-2 ring-violet-500/20"
+                  ? "bg-cyan-500/10 border-cyan-500/40 text-cyan-600 dark:text-cyan-400 shadow-sm font-bold ring-2 ring-cyan-500/20"
                   : "bg-secondary/40 border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
               }`}
             >
-              <div className="w-8 h-8 rounded-xl bg-violet-500/10 flex items-center justify-center">
-                <CreditCard className="w-4 h-4 text-violet-500" />
+              <div className="w-8 h-8 rounded-xl bg-cyan-500/10 flex items-center justify-center">
+                <CreditCard className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
               </div>
               <div>
                 <p className="text-xs font-bold">Debt & Loan Payoff</p>
@@ -297,7 +378,7 @@ export default function AddGoalModal({
           )}
         </div>
 
-        {/* Target Deadline (Optional) */}
+        {/* Target Completion Date (Optional) */}
         <div>
           <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
             Target Completion Date (Optional)
@@ -309,6 +390,106 @@ export default function AddGoalModal({
             className="w-full bg-secondary border border-border text-foreground rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-medium"
           />
         </div>
+
+        {/* Interactive Savings Goal "What-If" Pace Simulator Card */}
+        {remainingVal > 0 && whatIfForecast && (
+          <div className="p-4 sm:p-5 rounded-3xl bg-secondary/40 border border-primary/20 space-y-4 animate-in fade-in-50 duration-200">
+            {/* Header & Speed Badge */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                  <Sliders className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-foreground">
+                    Savings Pace &ldquo;What-If&rdquo; Simulator
+                  </h4>
+                  <p className="text-[10px] text-muted-foreground">
+                    Slide to test different monthly contributions
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs sm:text-sm font-black text-primary font-mono bg-primary/10 px-2.5 py-1 rounded-xl border border-primary/20 shrink-0">
+                {formatCurrency(simulatedMonthly)} / mo
+              </span>
+            </div>
+
+            {/* Range Slider */}
+            <div className="space-y-1.5">
+              <input
+                type="range"
+                min={minSliderMonthly}
+                max={maxSliderMonthly}
+                step={sliderStep}
+                value={simulatedMonthly}
+                onChange={(e) => setSimulatedMonthly(Number(e.target.value))}
+                className="w-full accent-primary h-2 bg-secondary rounded-lg cursor-pointer"
+              />
+              <div className="flex justify-between text-[10px] text-muted-foreground font-semibold">
+                <span>Min: {formatCurrency(minSliderMonthly)}/mo</span>
+                <span>Max: {formatCurrency(maxSliderMonthly)}/mo</span>
+              </div>
+            </div>
+
+            {/* Quick Preset Chips */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase mr-1">
+                Presets:
+              </span>
+              {presetChips.map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => setSimulatedMonthly(chip)}
+                  className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    simulatedMonthly === chip
+                      ? "bg-primary text-primary-foreground font-bold shadow-xs"
+                      : "bg-secondary hover:bg-secondary/80 text-foreground border border-border"
+                  }`}
+                >
+                  {formatCurrency(chip)}
+                </button>
+              ))}
+            </div>
+
+            {/* Live Projected Completion Date Card */}
+            <div className="p-3.5 rounded-2xl bg-card border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+              <div className="space-y-0.5 min-w-0">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                  <Calendar className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span>Projected Completion: {formatDate(whatIfForecast.dateStr)}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Reaches {formatCurrency(remainingVal)} goal in ~{whatIfForecast.monthsNeeded} months ({whatIfForecast.daysNeeded} days)
+                </p>
+
+                {/* Comparison with manual deadline if set */}
+                {whatIfForecast.comparison?.isFaster && (
+                  <p className="text-[11px] font-bold text-emerald-500 pt-0.5">
+                    🎉 Finishes {whatIfForecast.comparison.monthsDiff} months earlier (~{whatIfForecast.comparison.timeDiffDays} days saved)!
+                  </p>
+                )}
+                {whatIfForecast.comparison?.isSlower && (
+                  <p className="text-[11px] font-bold text-amber-500 pt-0.5">
+                    ⚠️ At this pace, you will finish {whatIfForecast.comparison.monthsDiff} months after your target date.
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDeadline(whatIfForecast.dateStr);
+                  toast.success(`Target date applied: ${formatDate(whatIfForecast.dateStr)}!`);
+                }}
+                className="shrink-0 inline-flex items-center justify-center gap-1.5 bg-secondary hover:bg-secondary/80 border border-primary/30 text-foreground hover:text-primary font-bold px-3 py-2 rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                <Zap className="w-3.5 h-3.5 text-primary" />
+                <span>Apply Date</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Initial Note (Optional, only for new goal with initial amount) */}
         {!isEditing && initialAmount && parseFloat(initialAmount) > 0 && (

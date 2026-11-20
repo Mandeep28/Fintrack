@@ -1,44 +1,59 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, memo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, 
   Menu, 
   X, 
-  TrendingUp,
   Target,
   Activity,
   PiggyBank,
-  KeyRound,
-  LogOut,
-  MoreVertical
+  Settings,
+  Users,
+  Trash2,
+  ShieldCheck,
 } from "lucide-react";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import ChangePasswordModal from "@/components/user/ChangePasswordModal";
+import FinTrackLogo from "@/components/ui/FinTrackLogo";
 
-const navItems = [
+const userNavItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Financial Health", href: "/health", icon: ShieldCheck },
   { name: "Goals", href: "/goals", icon: PiggyBank },
   { name: "Categories & Budgets", href: "/categories", icon: Target },
   { name: "Activity", href: "/activity", icon: Activity },
-  // { name: "My Rooms", href: "/rooms", icon: Users },
-  // { name: "New Room", href: "/rooms/new", icon: PlusCircle },
 ];
 
-function NavLinks({ pathname, onClick }: { pathname: string; onClick?: () => void }) {
+const adminNavItems = [
+  { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
+  { name: "User Management", href: "/admin/users", icon: Users },
+  { name: "Trash & Recovery", href: "/admin/trash", icon: Trash2 },
+];
+
+const NavLinks = memo(function NavLinks({ 
+  pathname, 
+  role,
+  onClick 
+}: { 
+  pathname: string; 
+  role?: string | null;
+  onClick?: () => void; 
+}) {
+  const items = role === "ADMIN" ? adminNavItems : userNavItems;
+
   return (
     <div className="space-y-1">
-      {navItems.map((item) => {
+      {items.map((item) => {
         const Icon = item.icon;
         const isActive = pathname === item.href;
         return (
           <Link
             key={item.href}
             href={item.href}
+            prefetch={true}
             onClick={onClick}
             className={cn(
               "flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 group font-medium text-sm",
@@ -54,94 +69,97 @@ function NavLinks({ pathname, onClick }: { pathname: string; onClick?: () => voi
       })}
     </div>
   );
-}
+});
 
 function ProfileCard({ 
   session, 
-  onOpenPasswordModal 
+  onClick 
 }: { 
   session: any; 
-  onOpenPasswordModal: () => void;
+  onClick?: () => void; 
 }) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
-    }
-    if (isMenuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isMenuOpen]);
+  const pathname = usePathname();
+  const isSettings = pathname === "/settings";
 
   return (
-    <div ref={menuRef} className="relative">
-      {/* Dropdown Menu (Opens upwards above card) */}
-      {isMenuOpen && (
-        <div className="absolute bottom-full mb-2 left-0 right-0 bg-popover text-popover-foreground border border-border rounded-xl shadow-xl p-1 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
-          <div className="px-3 py-2 border-b border-border/50 mb-1">
-            <p className="text-xs font-bold truncate text-foreground">{session?.user?.name}</p>
-            <p className="text-[10px] text-muted-foreground truncate">{session?.user?.email || "Personal Account"}</p>
-          </div>
-
-          <button
-            onClick={() => {
-              setIsMenuOpen(false);
-              onOpenPasswordModal();
-            }}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-foreground hover:bg-secondary transition-colors cursor-pointer"
-          >
-            <KeyRound className="w-3.5 h-3.5 text-muted-foreground" />
-            <span>Change Password</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setIsMenuOpen(false);
-              signOut({ callbackUrl: "/login" });
-            }}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
-          >
-            <LogOut className="w-3.5 h-3.5 text-rose-500" />
-            <span>Sign Out</span>
-          </button>
-        </div>
+    <Link
+      href="/settings"
+      prefetch={true}
+      onClick={onClick}
+      className={cn(
+        "flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer group",
+        isSettings
+          ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 font-semibold"
+          : "bg-secondary/70 hover:bg-secondary text-foreground border-transparent hover:border-border"
       )}
-
-      {/* Profile Card Container */}
-      <div className="flex items-center justify-between p-2.5 bg-secondary/70 hover:bg-secondary rounded-xl border border-transparent hover:border-border transition-colors">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">
-            {session?.user?.name?.[0]?.toUpperCase()}
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs font-bold text-foreground truncate">{session?.user?.name}</p>
-            <p className="text-[10px] text-muted-foreground truncate font-medium">
-              {session?.user?.email || "Personal Account"}
-            </p>
-          </div>
+      title="Open Account Settings"
+    >
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div
+          className={cn(
+            "w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center font-bold text-xs shrink-0 transition-colors",
+            isSettings
+              ? "bg-primary-foreground/20 text-primary-foreground"
+              : "bg-primary/10 border border-primary/20 text-primary"
+          )}
+        >
+          {session?.user?.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={session.user.image}
+              alt={session.user.name || "User"}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            session?.user?.name?.[0]?.toUpperCase() || "U"
+          )}
         </div>
 
-        {/* Three Dots Trigger Button */}
-        <button
-          onClick={() => setIsMenuOpen((prev) => !prev)}
-          className={cn(
-            "p-1.5 text-muted-foreground hover:text-foreground hover:bg-background/80 rounded-lg transition-all cursor-pointer shrink-0 ml-1",
-            isMenuOpen && "bg-background text-foreground shadow-sm"
-          )}
-          title="Account options"
-          aria-label="Account options"
-        >
-          <MoreVertical className="w-4 h-4" />
-        </button>
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <p
+              className={cn(
+                "text-xs font-bold truncate",
+                isSettings ? "text-primary-foreground" : "text-foreground"
+              )}
+            >
+              {session?.user?.name}
+            </p>
+            {session?.user?.role === "ADMIN" && (
+              <span
+                className={cn(
+                  "text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded-full shrink-0",
+                  isSettings
+                    ? "bg-primary-foreground/25 text-primary-foreground border border-primary-foreground/30"
+                    : "bg-primary/20 text-primary border border-primary/30"
+                )}
+              >
+                Admin
+              </span>
+            )}
+          </div>
+          <p
+            className={cn(
+              "text-[10px] truncate font-medium",
+              isSettings ? "text-primary-foreground/80" : "text-muted-foreground"
+            )}
+          >
+            {session?.user?.email || "Account"}
+          </p>
+        </div>
       </div>
-    </div>
+
+      <div
+        className={cn(
+          "p-1.5 rounded-lg transition-transform duration-200 shrink-0 ml-1 group-hover:rotate-45",
+          isSettings
+            ? "text-primary-foreground"
+            : "text-muted-foreground group-hover:text-foreground"
+        )}
+      >
+        <Settings className="w-4 h-4" />
+      </div>
+    </Link>
   );
 }
 
@@ -149,25 +167,20 @@ export default function Navbar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
-  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
   if (!session) return null;
 
   return (
     <>
       {/* Mobile Top Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-background border-b border-border z-40 flex items-center justify-between px-6">
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-background/80 backdrop-blur-md border-b border-border z-40 flex items-center justify-between px-6">
+        <Link href="/dashboard" className="flex items-center">
+          <FinTrackLogo variant="full" size="sm" />
+        </Link>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <TrendingUp className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="font-bold text-lg text-foreground">FinTrack</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <ThemeToggle />
           <button
             onClick={() => setIsOpen(true)}
-            className="p-2 -mr-2 text-muted-foreground hover:text-foreground cursor-pointer"
+            className="p-2 -mr-2 text-muted-foreground hover:text-foreground cursor-pointer rounded-xl hover:bg-secondary/60 transition-colors"
           >
             <Menu className="w-6 h-6" />
           </button>
@@ -175,26 +188,19 @@ export default function Navbar() {
       </div>
 
       {/* Desktop Sidebar */}
-      <nav className="hidden lg:flex fixed left-0 top-0 h-screen w-64 bg-card border-r border-border flex-col p-4 z-30">
+      <nav className="hidden lg:flex fixed left-0 top-0 h-screen w-64 bg-card/90 backdrop-blur-md border-r border-border flex-col p-4 z-30">
         <div className="mb-6 px-1 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-md shadow-primary/20">
-              <TrendingUp className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="text-lg font-bold text-foreground tracking-tight">FinTrack</span>
-          </div>
-          <ThemeToggle />
+          <Link href="/dashboard" className="flex items-center">
+            <FinTrackLogo variant="full" size="md" />
+          </Link>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          <NavLinks pathname={pathname} onClick={() => setIsOpen(false)} />
+          <NavLinks pathname={pathname} role={session?.user?.role} onClick={() => setIsOpen(false)} />
         </div>
 
-        <div className="mt-auto pt-4 border-t border-border">
-          <ProfileCard
-            session={session}
-            onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
-          />
+        <div className="mt-auto pt-4 border-t border-border/60">
+          <ProfileCard session={session} />
         </div>
       </nav>
 
@@ -209,40 +215,30 @@ export default function Navbar() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6 px-1">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-primary-foreground" />
-                </div>
-                <span className="text-lg font-bold text-foreground tracking-tight">FinTrack</span>
-              </div>
-              <button onClick={() => setIsOpen(false)} className="text-muted-foreground hover:text-foreground cursor-pointer">
+              <Link href="/dashboard" onClick={() => setIsOpen(false)} className="flex items-center">
+                <FinTrackLogo variant="full" size="md" />
+              </Link>
+              <button 
+                onClick={() => setIsOpen(false)} 
+                className="text-muted-foreground hover:text-foreground cursor-pointer p-1 rounded-lg hover:bg-secondary/60"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              <NavLinks pathname={pathname} onClick={() => setIsOpen(false)} />
+              <NavLinks pathname={pathname} role={session?.user?.role} onClick={() => setIsOpen(false)} />
             </div>
 
-            <div className="mt-auto pt-4 border-t border-border">
+            <div className="mt-auto pt-4 border-t border-border/60">
               <ProfileCard
                 session={session}
-                onOpenPasswordModal={() => {
-                  setIsOpen(false);
-                  setIsPasswordModalOpen(true);
-                }}
+                onClick={() => setIsOpen(false)}
               />
             </div>
           </div>
         </div>
       )}
-
-      {/* Change Password Modal */}
-      <ChangePasswordModal
-        isOpen={isPasswordModalOpen}
-        onClose={() => setIsPasswordModalOpen(false)}
-      />
     </>
   );
 }
-

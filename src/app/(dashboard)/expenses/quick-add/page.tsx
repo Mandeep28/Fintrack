@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import axios from "axios";
 import { 
-  ArrowLeft, 
   Sparkles, 
   Trash2, 
   Loader2, 
@@ -13,48 +12,92 @@ import {
   CheckCircle2, 
   HelpCircle,
   FileSpreadsheet,
-  Plus
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Bot
 } from "lucide-react";
-import { BROAD_CATEGORIES, parseBulkText, ParsedExpense, detectCategory } from "@/lib/categorizer";
+import { BROAD_CATEGORIES } from "@/lib/categorizer";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
+import { useInvalidateData, useCategoriesQuery } from "@/hooks/useQueries";
+import Breadcrumb from "@/components/ui/Breadcrumb";
+
+export interface ParsedExpenseItem {
+  amount: number;
+  category: string;
+  note: string;
+  date: string;
+  raw: string;
+  isAICategorized?: boolean;
+  matchedKeyword?: string;
+  matchedSource?: "USER" | "SYSTEM" | "AI";
+}
 
 export default function QuickAddExpensePage() {
   const router = useRouter();
+  const { invalidateExpenses } = useInvalidateData();
+  const { data: categoriesData } = useCategoriesQuery();
+
+  const allCategories = useMemo(() => {
+    return Array.from(
+      new Set([
+        ...BROAD_CATEGORIES,
+        ...(categoriesData?.custom?.map((c: any) => c.name) || []),
+        ...(categoriesData?.all || []),
+      ])
+    );
+  }, [categoriesData]);
+
   const [rawText, setRawText] = useState("");
-  const [parsedItems, setParsedItems] = useState<ParsedExpense[]>([]);
+  const [parsedItems, setParsedItems] = useState<ParsedExpenseItem[]>([]);
   const [isEditingMode, setIsEditingMode] = useState(false);
+  const [parsing, setParsing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleParse = () => {
+  // Review table pagination for ultra-fast rendering on large bulk entries (>50 items)
+  const [reviewPage, setReviewPage] = useState(1);
+  const reviewLimit = 50;
+
+  const handleParse = async () => {
     if (!rawText.trim()) return;
-    const items = parseBulkText(rawText);
-    if (items.length === 0) {
-      setError("Could not parse any expenses. Please check format (e.g. '20 sept 250 dinner')");
-      return;
-    }
+    setParsing(true);
     setError("");
-    setParsedItems(items);
-    setIsEditingMode(true);
+
+    try {
+      const res = await axios.post("/api/expenses/parse", { text: rawText });
+      if (res.data?.items && res.data.items.length > 0) {
+        setParsedItems(res.data.items);
+        setReviewPage(1);
+        setIsEditingMode(true);
+      } else {
+        setError("Could not detect any expenses. Please check format (e.g. '12 nov 250 sagar ratna')");
+      }
+    } catch (err: any) {
+      console.error("Failed to parse expenses:", err);
+      setError(err.response?.data?.message || "Failed to parse expenses. Please try again.");
+    } finally {
+      setParsing(false);
+    }
   };
 
-  const handleUpdateItem = (index: number, updates: Partial<ParsedExpense>) => {
+  const handleUpdateItem = (index: number, updates: Partial<ParsedExpenseItem>) => {
     setParsedItems((prev) => {
       const copy = [...prev];
       copy[index] = { ...copy[index], ...updates };
-      if (updates.note && !updates.category) {
-        copy[index].category = detectCategory(updates.note);
-      }
       return copy;
     });
   };
 
   const handleDeleteItem = (index: number) => {
-    setParsedItems((prev) => prev.filter((_, i) => i !== index));
-    if (parsedItems.length <= 1) {
-      setIsEditingMode(false);
-    }
+    setParsedItems((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (next.length <= 1) {
+        setIsEditingMode(false);
+      }
+      return next;
+    });
   };
 
   const handleAddNewRow = () => {
@@ -75,6 +118,17 @@ export default function QuickAddExpensePage() {
     return parsedItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   }, [parsedItems]);
 
+  const totalReviewPages = Math.ceil(parsedItems.length / reviewLimit) || 1;
+  const visibleReviewItems = useMemo(() => {
+    if (parsedItems.length <= reviewLimit) {
+      return parsedItems.map((item, i) => ({ item, originalIndex: i }));
+    }
+    const start = (reviewPage - 1) * reviewLimit;
+    return parsedItems
+      .slice(start, start + reviewLimit)
+      .map((item, i) => ({ item, originalIndex: start + i }));
+  }, [parsedItems, reviewPage, reviewLimit]);
+
   const handleSubmit = async () => {
     if (parsedItems.length === 0) return;
     setLoading(true);
@@ -91,6 +145,7 @@ export default function QuickAddExpensePage() {
         })),
       });
 
+      invalidateExpenses();
       toast.success(`Successfully saved ${parsedItems.length} expenses!`);
       router.push("/dashboard");
     } catch (err: any) {
@@ -103,25 +158,26 @@ export default function QuickAddExpensePage() {
   const sampleEntries = `20 sept 250 dinner\n20 sept 58 rapido\nyesterday 1200 dmart groceries\ntrain ticket 450\n80 chai and bun maska\n1.5k shoes amazon`;
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto pb-20 animate-in fade-in duration-500">
+    <div className="space-y-6 max-w-5xl mx-auto pb-20 animate-in fade-in duration-300">
+      {/* Breadcrumb */}
+      <Breadcrumb
+        items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Quick One-Liner (Bulk)" },
+        ]}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-6">
         <div>
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground mb-3 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </Link>
           <h1 className="text-2xl md:text-3xl font-bold text-foreground flex items-center gap-3">
-            <span className="p-2.5 bg-blue-600/10 border border-blue-500/20 text-blue-500 rounded-2xl">
+            <span className="p-2.5 bg-primary/10 border border-primary/20 text-primary rounded-2xl">
               <Sparkles className="w-6 h-6" />
             </span>
             Quick One-Liner Entry
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Dump your weekly or monthly UPI spends in plain text — FinTrack will extract the dates, amounts, and categories automatically.
+            Dump your daily or monthly UPI spends in plain text — FinTrack will extract the dates, amounts, and categories automatically.
           </p>
         </div>
 
@@ -158,17 +214,17 @@ export default function QuickAddExpensePage() {
             <button
               type="button"
               onClick={() => setRawText(sampleEntries)}
-              className="text-xs text-primary hover:underline font-bold"
+              className="text-xs text-primary hover:underline font-bold cursor-pointer"
             >
               Fill Sample Data
             </button>
           </div>
 
           <textarea
-            rows={10}
+            rows={12}
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
-            placeholder={`Type or paste your expenses here, e.g.:\n20 sept 250 dinner\n20 sept 58 rapido\nyesterday 1200 dmart groceries\ntrain ticket 450\n80 chai\n1.5k shoes`}
+            placeholder={`Type or paste your expenses here, e.g.:\n20 sept 250 dinner\n20 sept 58 rapido\nyesterday 1200 dmart groceries\ntrain ticket 450\n80 chai\n1.5k shoes\n\nOr click "Load 4-5 Months Bulk (2,220 items)" above to test large datasets.`}
             className="w-full bg-secondary/30 border border-border rounded-2xl p-5 text-foreground text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-muted-foreground/60 resize-y leading-relaxed"
           />
 
@@ -189,32 +245,43 @@ export default function QuickAddExpensePage() {
           <button
             type="button"
             onClick={handleParse}
-            disabled={!rawText.trim()}
-            className="w-full bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground font-bold py-4 rounded-2xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 text-sm active:scale-[0.99]"
+            disabled={!rawText.trim() || parsing}
+            className="w-full bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground font-bold py-4 rounded-2xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 text-sm active:scale-[0.99] cursor-pointer"
           >
-            <Sparkles className="w-4 h-4" />
-            Parse & Review {rawText.trim() ? `(${rawText.trim().split("\n").filter(Boolean).length} lines)` : ""}
+            {parsing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Analyzing & Categorizing with AI...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" />
+                <span>Parse & Review {rawText.trim() ? `(${rawText.trim().split("\n").filter(Boolean).length} lines)` : ""}</span>
+              </>
+            )}
           </button>
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-bold text-foreground">Review & Edit Parsed Expenses</h2>
-              <p className="text-xs text-muted-foreground">Check details before saving. You can adjust categories, dates, or amounts.</p>
+              <p className="text-xs text-muted-foreground">
+                Showing {visibleReviewItems.length} of {parsedItems.length} parsed transactions. You can adjust amounts, dates, or categories before saving.
+              </p>
             </div>
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={handleAddNewRow}
-                className="px-3.5 py-2 bg-secondary hover:bg-secondary/80 border border-border text-foreground rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+                className="px-3.5 py-2 bg-secondary hover:bg-secondary/80 border border-border text-foreground rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" /> Add Row
               </button>
               <button
                 type="button"
                 onClick={() => setIsEditingMode(false)}
-                className="text-xs text-primary hover:underline font-bold"
+                className="text-xs text-primary hover:underline font-bold cursor-pointer"
               >
                 Edit Raw Text
               </button>
@@ -235,14 +302,14 @@ export default function QuickAddExpensePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {parsedItems.map((item, index) => (
-                    <tr key={index} className="hover:bg-secondary/20 transition-colors">
+                  {visibleReviewItems.map(({ item, originalIndex }) => (
+                    <tr key={originalIndex} className="hover:bg-secondary/20 transition-colors">
                       {/* Date */}
                       <td className="p-3">
                         <input
                           type="date"
                           value={item.date}
-                          onChange={(e) => handleUpdateItem(index, { date: e.target.value })}
+                          onChange={(e) => handleUpdateItem(originalIndex, { date: e.target.value })}
                           className="w-full bg-secondary text-foreground text-xs px-3 py-2 rounded-xl border border-border focus:outline-none focus:ring-1 focus:ring-primary font-medium"
                         />
                       </td>
@@ -252,7 +319,7 @@ export default function QuickAddExpensePage() {
                         <input
                           type="text"
                           value={item.note}
-                          onChange={(e) => handleUpdateItem(index, { note: e.target.value })}
+                          onChange={(e) => handleUpdateItem(originalIndex, { note: e.target.value })}
                           placeholder="Description"
                           className="w-full bg-secondary text-foreground text-xs px-3 py-2 rounded-xl border border-border focus:outline-none focus:ring-1 focus:ring-primary font-medium"
                         />
@@ -262,15 +329,27 @@ export default function QuickAddExpensePage() {
                       <td className="p-3">
                         <select
                           value={item.category}
-                          onChange={(e) => handleUpdateItem(index, { category: e.target.value as any })}
+                          onChange={(e) => handleUpdateItem(originalIndex, { category: e.target.value })}
                           className="w-full bg-secondary text-foreground text-xs px-3 py-2 rounded-xl border border-border focus:outline-none focus:ring-1 focus:ring-primary font-semibold cursor-pointer"
                         >
-                          {BROAD_CATEGORIES.map((cat) => (
+                          {allCategories.map((cat) => (
                             <option key={cat} value={cat}>
                               {cat}
                             </option>
                           ))}
                         </select>
+                        {item.isAICategorized && (
+                          <div className="flex items-center gap-1 mt-1 text-[10px] font-bold text-primary">
+                            <Bot className="w-3 h-3 text-primary shrink-0" />
+                            <span className="truncate">AI: {item.matchedKeyword || "Learned"}</span>
+                          </div>
+                        )}
+                        {item.matchedSource === "USER" && (
+                          <div className="flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-500">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
+                            <span className="truncate">Custom: {item.matchedKeyword}</span>
+                          </div>
+                        )}
                       </td>
 
                       {/* Amount */}
@@ -281,7 +360,7 @@ export default function QuickAddExpensePage() {
                             type="number"
                             step="0.01"
                             value={item.amount}
-                            onChange={(e) => handleUpdateItem(index, { amount: parseFloat(e.target.value) || 0 })}
+                            onChange={(e) => handleUpdateItem(originalIndex, { amount: parseFloat(e.target.value) || 0 })}
                             className="w-full bg-secondary text-foreground text-xs pl-7 pr-3 py-2 rounded-xl border border-border focus:outline-none focus:ring-1 focus:ring-primary font-bold text-right"
                           />
                         </div>
@@ -291,8 +370,8 @@ export default function QuickAddExpensePage() {
                       <td className="p-3 text-center">
                         <button
                           type="button"
-                          onClick={() => handleDeleteItem(index)}
-                          className="p-2 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
+                          onClick={() => handleDeleteItem(originalIndex)}
+                          className="p-2 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all cursor-pointer"
                           title="Delete Row"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -303,13 +382,45 @@ export default function QuickAddExpensePage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls when dataset is large (>50 items) */}
+            {parsedItems.length > reviewLimit && (
+              <div className="px-6 py-3.5 bg-secondary/20 border-t border-border flex items-center justify-between text-xs">
+                <span className="text-muted-foreground font-medium">
+                  Page <span className="font-bold text-foreground">{reviewPage}</span> of{" "}
+                  <span className="font-bold text-foreground">{totalReviewPages}</span> (
+                  {(reviewPage - 1) * reviewLimit + 1} -{" "}
+                  {Math.min(reviewPage * reviewLimit, parsedItems.length)} of {parsedItems.length} items)
+                </span>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setReviewPage((p) => Math.max(1, p - 1))}
+                    disabled={reviewPage <= 1}
+                    className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 disabled:opacity-40 text-foreground transition-all cursor-pointer"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReviewPage((p) => Math.min(totalReviewPages, p + 1))}
+                    disabled={reviewPage >= totalReviewPages}
+                    className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 disabled:opacity-40 text-foreground transition-all cursor-pointer"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Action buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
             <Link
               href="/dashboard"
-              className="text-xs text-muted-foreground hover:text-foreground font-bold transition-colors"
+              prefetch={true}
+              className="text-xs text-muted-foreground hover:text-foreground font-bold transition-colors cursor-pointer"
             >
               Cancel and Discard
             </Link>
@@ -318,7 +429,7 @@ export default function QuickAddExpensePage() {
               type="button"
               disabled={loading || parsedItems.length === 0}
               onClick={handleSubmit}
-              className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold px-8 py-4 rounded-2xl shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 text-sm active:scale-[0.99]"
+              className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold px-8 py-4 rounded-2xl shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 text-sm active:scale-[0.99] cursor-pointer"
             >
               {loading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
