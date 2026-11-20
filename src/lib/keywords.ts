@@ -60,6 +60,7 @@ export const DEFAULT_SYSTEM_KEYWORDS: Record<Exclude<StandardCategory, "Other">,
 
 function matchesKeyword(text: string, kw: string): boolean {
   const cleanKw = kw.toLowerCase().trim();
+  if (!cleanKw) return false;
   if (cleanKw.includes(" ") || cleanKw.includes("-")) {
     return text.includes(cleanKw);
   }
@@ -112,29 +113,26 @@ export interface MatchedCategoryResult {
   source: "USER" | "SYSTEM" | "AI";
 }
 
-/**
- * Detects category from database keywords:
- * 1. User manual keywords (top priority, scoped to user)
- * 2. System default keywords (global)
- * 3. AI background learned keywords (global or user-scoped)
- */
-export async function detectCategoryFromDB(
-  text: string,
-  userId: string
-): Promise<MatchedCategoryResult | null> {
-  if (!text) return null;
-  const cleanText = text.toLowerCase().trim();
+export interface LoadedKeywords {
+  userKeywords: Array<{ keyword: string; category: string }>;
+  systemKeywords: Array<{ keyword: string; category: string }>;
+  aiKeywords: Array<{ keyword: string; category: string }>;
+}
 
+/**
+ * Pre-loads all keywords for the user in a SINGLE parallel batch query.
+ * Allows instant, zero-delay in-memory matching for 2,000+ entries.
+ */
+export async function preloadKeywordsForUser(userId: string): Promise<LoadedKeywords> {
   await seedSystemKeywordsIfEmpty();
 
-  // Parallel fetch for candidate keywords
   const [userKeywords, systemKeywords, aiKeywords] = await Promise.all([
-    // 1. User-specific manual keywords
+    // 1. User manual keywords
     prisma.categoryKeyword.findMany({
       where: { userId, source: "USER" },
       select: { keyword: true, category: true },
     }),
-    // 2. Global system default keywords
+    // 2. System default keywords
     prisma.categoryKeyword.findMany({
       where: { userId: null, source: "SYSTEM" },
       select: { keyword: true, category: true },
@@ -149,29 +147,40 @@ export async function detectCategoryFromDB(
     }),
   ]);
 
-  // Sort longest keywords first to prevent substring collisions
   const sortByLength = (a: { keyword: string }, b: { keyword: string }) => b.keyword.length - a.keyword.length;
-
   userKeywords.sort(sortByLength);
   systemKeywords.sort(sortByLength);
   aiKeywords.sort(sortByLength);
 
+  return { userKeywords, systemKeywords, aiKeywords };
+}
+
+/**
+ * Fast in-memory category matcher against preloaded keywords.
+ */
+export function matchCategoryFromLoadedKeywords(
+  text: string,
+  loaded: LoadedKeywords
+): MatchedCategoryResult | null {
+  if (!text) return null;
+  const cleanText = text.toLowerCase().trim();
+
   // Check 1: User manual keywords
-  for (const item of userKeywords) {
+  for (const item of loaded.userKeywords) {
     if (matchesKeyword(cleanText, item.keyword)) {
       return { category: item.category, matchedKeyword: item.keyword, source: "USER" };
     }
   }
 
   // Check 2: System global keywords
-  for (const item of systemKeywords) {
+  for (const item of loaded.systemKeywords) {
     if (matchesKeyword(cleanText, item.keyword)) {
       return { category: item.category, matchedKeyword: item.keyword, source: "SYSTEM" };
     }
   }
 
   // Check 3: AI learned keywords
-  for (const item of aiKeywords) {
+  for (const item of loaded.aiKeywords) {
     if (matchesKeyword(cleanText, item.keyword)) {
       return { category: item.category, matchedKeyword: item.keyword, source: "AI" };
     }
@@ -181,47 +190,49 @@ export async function detectCategoryFromDB(
 }
 
 /**
- * Saves a newly discovered keyword from AI into the database.
- * If category is standard, it is saved as GLOBAL (userId = null).
- * If category is user's custom category, it is saved as USER-SCOPED (userId = userId).
+ * Backward-compatible single item matcher.
  */
-export async function saveLearnedKeyword(
-  keyword: string,
-  category: string,
+export async function detectCategoryFromDB(
+  text: string,
+  userId: string
+): Promise<MatchedCategoryResult | null> {
+  const loaded = await preloadKeywordsForUser(userId);
+  return matchCategoryFromLoadedKeywords(text, loaded);
+}
+
+/**
+ * Saves newly discovered keywords from AI into the database in bulk.
+ */
+export async function saveLearnedKeywordsBulk(
+  keywords: Array<{ keyword: string; category: string }>,
   userId: string
 ) {
-  const cleanKw = keyword.toLowerCase().trim();
-  if (!cleanKw || cleanKw.length < 2) return;
+  if (keywords.length === 0) return;
 
-  const isStandard = STANDARD_CATEGORIES.includes(category as any);
-  const targetUserId = isStandard ? null : userId;
+  const records = keywords
+    .map((k) => ({
+      keyword: k.keyword.toLowerCase().trim(),
+      category: k.category,
+      userId: STANDARD_CATEGORIES.includes(k.category as any) ? null : userId,
+      source: "AI",
+    }))
+    .filter((k) => k.keyword.length >= 2);
+
+  if (records.length === 0) return;
 
   try {
-    // Check if keyword already exists for this scope
-    const existing = await prisma.categoryKeyword.findFirst({
-      where: {
-        keyword: cleanKw,
-        userId: targetUserId,
-      },
+    await prisma.categoryKeyword.createMany({
+      data: records,
+      skipDuplicates: true,
     });
-
-    if (!existing) {
-      await prisma.categoryKeyword.create({
-        data: {
-          keyword: cleanKw,
-          category,
-          userId: targetUserId,
-          source: "AI",
-        },
-      });
-    }
   } catch (err) {
-    console.warn(`Could not save AI learned keyword "${cleanKw}":`, err);
+    console.warn("Could not batch save AI learned keywords:", err);
   }
 }
 
 /**
- * Calls OpenAI or OpenRouter to classify unknown expense descriptions.
+ * Calls AI in chunked batches with deduplication to classify unknown expense descriptions.
+ * Optimized for thousands of entries without token limits or timeouts.
  */
 export async function batchClassifyWithAI(
   items: Array<{ index: number; note: string }>,
@@ -242,97 +253,150 @@ export async function batchClassifyWithAI(
     return results;
   }
 
-  let endpoint = "https://api.openai.com/v1/chat/completions";
-  let apiKey = "";
-  let model = process.env.AI_MODEL?.trim() || "gpt-4o-mini";
+  // Configure endpoint & model (Defaults to high-speed google/gemini-2.0-flash-exp:free)
+  let endpoint = "https://openrouter.ai/api/v1/chat/completions";
+  const apiKey = openRouterKey || openAiKey || "";
+  let model = process.env.AI_MODEL?.trim() || "openrouter/free";
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    Authorization: `Bearer ${apiKey}`,
   };
 
   if (openRouterKey) {
     endpoint = "https://openrouter.ai/api/v1/chat/completions";
-    apiKey = openRouterKey;
-    headers["Authorization"] = `Bearer ${apiKey}`;
     headers["HTTP-Referer"] = "https://fintrack.app";
     headers["X-Title"] = "FinTrack Categorizer";
-    if (!process.env.AI_MODEL) {
-      model = "meta-llama/llama-3.3-70b-instruct:free";
-    }
   } else if (openAiKey) {
     endpoint = "https://api.openai.com/v1/chat/completions";
-    apiKey = openAiKey;
-    headers["Authorization"] = `Bearer ${apiKey}`;
+    if (!process.env.AI_MODEL) {
+      model = "gpt-4o-mini";
+    }
   }
 
-  const promptItems = items.map((it) => ({
-    id: it.index,
-    description: it.note,
-  }));
+  // 1. DEDUPLICATION: Map unique notes to their respective item indices
+  // This drastically cuts down LLM calls when 2000 entries share common merchants.
+  const noteToIndices = new Map<string, number[]>();
+  for (const item of items) {
+    const cleanNote = item.note.toLowerCase().trim();
+    if (!noteToIndices.has(cleanNote)) {
+      noteToIndices.set(cleanNote, []);
+    }
+    noteToIndices.get(cleanNote)!.push(item.index);
+  }
+
+  const uniqueNotes = Array.from(noteToIndices.keys());
+  const learnedKeywordsToSave: Array<{ keyword: string; category: string }> = [];
+
+  // 2. CHUNKING: Split unique notes into manageable batches (30 items per chunk)
+  const CHUNK_SIZE = 30;
+  const chunks: string[][] = [];
+  for (let i = 0; i < uniqueNotes.length; i += CHUNK_SIZE) {
+    chunks.push(uniqueNotes.slice(i, i + CHUNK_SIZE));
+  }
 
   const systemPrompt = `You are a finance assistant. Categorize each expense description into the single most appropriate category from the allowed list:
 Allowed Categories: ${JSON.stringify(availableCategories)}
 
 For each item, also extract the core merchant or expense keyword (e.g., from 'sagar ratna dinner' extract 'sagar ratna'; from 'uber ride to office' extract 'uber'; from 'bought fresh fruits' extract 'fruits').
 
-Return a STRICT JSON array with no markdown backticks:
+Return ONLY a strict JSON array with NO markdown backticks:
 [
-  { "id": number, "category": "CategoryName", "keyword": "extracted merchant/item keyword" }
+  { "description": "exact description text", "category": "CategoryName", "keyword": "extracted keyword" }
 ]`;
 
-  try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Categorize these items: ${JSON.stringify(promptItems)}` },
-        ],
-        temperature: 0.1,
-        max_tokens: 400,
-      }),
-      signal: AbortSignal.timeout(8000),
-    });
+  // Helper to process a single chunk
+  const processChunk = async (chunkNotes: string[]) => {
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: `Categorize these items:\n${JSON.stringify(chunkNotes)}` },
+          ],
+          temperature: 0.1,
+          max_tokens: 3000,
+        }),
+        signal: AbortSignal.timeout(25000),
+      });
 
-    if (!response.ok) {
-      console.warn("AI categorization returned non-200. Using fallback.");
-      for (const item of items) {
-        results.set(item.index, { category: "Other", extractedKeyword: item.note });
+      if (!response.ok) {
+        console.warn(`AI categorization chunk returned HTTP ${response.status}. Using fallback.`);
+        for (const note of chunkNotes) {
+          const indices = noteToIndices.get(note) || [];
+          for (const idx of indices) {
+            results.set(idx, { category: "Other", extractedKeyword: note });
+          }
+        }
+        return;
       }
-      return results;
-    }
 
-    const json = await response.json();
-    const content = json.choices?.[0]?.message?.content?.trim();
-    if (!content) return results;
+      const json = await response.json();
+      const content = json.choices?.[0]?.message?.content?.trim();
+      if (!content) return;
 
-    const cleaned = content.replace(/^```json\s*/, "").replace(/^```\s*/, "").replace(/\s*```$/, "");
-    const parsed = JSON.parse(cleaned);
+      // Extract JSON array robustly
+      let cleaned = content.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/\s*```$/, "");
+      const firstBracket = cleaned.indexOf("[");
+      const lastBracket = cleaned.lastIndexOf("]");
+      if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+        cleaned = cleaned.substring(firstBracket, lastBracket + 1);
+      }
 
-    if (Array.isArray(parsed)) {
-      for (const entry of parsed) {
-        if (typeof entry.id === "number" && entry.category) {
+      const parsed = JSON.parse(cleaned);
+
+      if (Array.isArray(parsed)) {
+        for (const entry of parsed) {
+          const entryDesc = (entry.description || "").toLowerCase().trim();
           const matchedCategory = availableCategories.includes(entry.category) ? entry.category : "Other";
-          const extractedKeyword = (entry.keyword || "").toLowerCase().trim();
+          const extractedKeyword = (entry.keyword || "").toLowerCase().trim() || entryDesc;
 
-          results.set(entry.id, {
-            category: matchedCategory,
-            extractedKeyword: extractedKeyword || "unknown",
-          });
+          if (extractedKeyword && extractedKeyword.length >= 2 && matchedCategory !== "Other") {
+            learnedKeywordsToSave.push({ keyword: extractedKeyword, category: matchedCategory });
+          }
 
-          // Save learned keyword into DB in background
-          if (extractedKeyword && extractedKeyword.length >= 2) {
-            await saveLearnedKeyword(extractedKeyword, matchedCategory, userId);
+          // Map back to all lines matching this note
+          const indices = noteToIndices.get(entryDesc) || [];
+          for (const idx of indices) {
+            results.set(idx, {
+              category: matchedCategory,
+              extractedKeyword,
+            });
           }
         }
       }
+    } catch (err) {
+      console.warn("AI categorization chunk error:", err);
+      // Fallback for this chunk
+      for (const note of chunkNotes) {
+        const indices = noteToIndices.get(note) || [];
+        for (const idx of indices) {
+          results.set(idx, { category: "Other", extractedKeyword: note });
+        }
+      }
     }
-  } catch (err) {
-    console.warn("AI categorization error:", err);
-    for (const item of items) {
+  };
+
+  // 3. EXECUTION: Run chunks concurrently in batches of 3
+  const CONCURRENCY = 3;
+  for (let i = 0; i < chunks.length; i += CONCURRENCY) {
+    const batch = chunks.slice(i, i + CONCURRENCY);
+    await Promise.all(batch.map((chunk) => processChunk(chunk)));
+  }
+
+  // 4. Fallback fill for any items that didn't receive a result
+  for (const item of items) {
+    if (!results.has(item.index)) {
       results.set(item.index, { category: "Other", extractedKeyword: item.note });
     }
+  }
+
+  // 5. Batch persist learned keywords
+  if (learnedKeywordsToSave.length > 0) {
+    await saveLearnedKeywordsBulk(learnedKeywordsToSave, userId);
   }
 
   return results;

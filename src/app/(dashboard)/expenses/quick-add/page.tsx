@@ -224,7 +224,7 @@ export default function QuickAddExpensePage() {
             rows={12}
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
-            placeholder={`Type or paste your expenses here, e.g.:\n20 sept 250 dinner\n20 sept 58 rapido\nyesterday 1200 dmart groceries\ntrain ticket 450\n80 chai\n1.5k shoes\n\nOr click "Load 4-5 Months Bulk (2,220 items)" above to test large datasets.`}
+            placeholder={`Type or paste your expenses here, e.g.:\n20 sept 250 dinner\n20 sept 58 rapido\nyesterday 1200 dmart groceries\ntrain ticket 450\n80 chai\n1.5k shoes`}
             className="w-full bg-secondary/30 border border-border rounded-2xl p-5 text-foreground text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-muted-foreground/60 resize-y leading-relaxed"
           />
 

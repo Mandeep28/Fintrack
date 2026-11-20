@@ -1,19 +1,20 @@
 -- AlterTable
-ALTER TABLE "User" ADD COLUMN     "bio" TEXT,
-ADD COLUMN     "deletedAt" TIMESTAMP(3),
-ADD COLUMN     "emailVerified" TIMESTAMP(3),
-ADD COLUMN     "image" TEXT,
-ADD COLUMN     "isVerified" BOOLEAN NOT NULL DEFAULT true,
-ADD COLUMN     "phoneNumber" TEXT,
-ADD COLUMN     "provider" TEXT DEFAULT 'credentials',
-ADD COLUMN     "role" TEXT NOT NULL DEFAULT 'USER',
-ADD COLUMN     "status" TEXT NOT NULL DEFAULT 'ACTIVE',
-ADD COLUMN     "verificationCode" TEXT,
-ADD COLUMN     "verificationExpires" TIMESTAMP(3),
-ALTER COLUMN "password" DROP NOT NULL;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "bio" TEXT,
+ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS "emailVerified" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS "image" TEXT,
+ADD COLUMN IF NOT EXISTS "isVerified" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN IF NOT EXISTS "phoneNumber" TEXT,
+ADD COLUMN IF NOT EXISTS "provider" TEXT DEFAULT 'credentials',
+ADD COLUMN IF NOT EXISTS "role" TEXT NOT NULL DEFAULT 'USER',
+ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+ADD COLUMN IF NOT EXISTS "verificationCode" TEXT,
+ADD COLUMN IF NOT EXISTS "verificationExpires" TIMESTAMP(3);
+
+ALTER TABLE "User" ALTER COLUMN "password" DROP NOT NULL;
 
 -- CreateTable
-CREATE TABLE "FinancialHealth" (
+CREATE TABLE IF NOT EXISTS "FinancialHealth" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "score" INTEGER NOT NULL,
@@ -28,7 +29,7 @@ CREATE TABLE "FinancialHealth" (
 );
 
 -- CreateTable
-CREATE TABLE "CategoryKeyword" (
+CREATE TABLE IF NOT EXISTS "CategoryKeyword" (
     "id" TEXT NOT NULL,
     "keyword" TEXT NOT NULL,
     "category" TEXT NOT NULL,
@@ -41,22 +42,30 @@ CREATE TABLE "CategoryKeyword" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "FinancialHealth_userId_key" ON "FinancialHealth"("userId");
+CREATE UNIQUE INDEX IF NOT EXISTS "FinancialHealth_userId_key" ON "FinancialHealth"("userId");
 
 -- CreateIndex
-CREATE INDEX "CategoryKeyword_keyword_idx" ON "CategoryKeyword"("keyword");
+CREATE INDEX IF NOT EXISTS "CategoryKeyword_keyword_idx" ON "CategoryKeyword"("keyword");
 
 -- CreateIndex
-CREATE INDEX "CategoryKeyword_userId_idx" ON "CategoryKeyword"("userId");
+CREATE INDEX IF NOT EXISTS "CategoryKeyword_userId_idx" ON "CategoryKeyword"("userId");
 
 -- CreateIndex
-CREATE INDEX "CategoryKeyword_category_idx" ON "CategoryKeyword"("category");
+CREATE INDEX IF NOT EXISTS "CategoryKeyword_category_idx" ON "CategoryKeyword"("category");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "CategoryKeyword_keyword_userId_key" ON "CategoryKeyword"("keyword", "userId");
+CREATE UNIQUE INDEX IF NOT EXISTS "CategoryKeyword_keyword_userId_key" ON "CategoryKeyword"("keyword", "userId");
 
 -- AddForeignKey
-ALTER TABLE "FinancialHealth" ADD CONSTRAINT "FinancialHealth_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "FinancialHealth" ADD CONSTRAINT "FinancialHealth_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "CategoryKeyword" ADD CONSTRAINT "CategoryKeyword_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "CategoryKeyword" ADD CONSTRAINT "CategoryKeyword_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;

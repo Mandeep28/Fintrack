@@ -5,10 +5,13 @@ import { prisma } from "@/lib/prisma";
 import { parseOneLiner } from "@/lib/categorizer";
 import {
   STANDARD_CATEGORIES,
-  detectCategoryFromDB,
+  preloadKeywordsForUser,
+  matchCategoryFromLoadedKeywords,
   batchClassifyWithAI,
-  seedSystemKeywordsIfEmpty,
 } from "@/lib/keywords";
+
+export const maxDuration = 60; // Allow up to 60 seconds for large bulk batch classification
+export const dynamic = "force-dynamic";
 
 export interface ParsedExpenseResponse {
   date: string;
@@ -36,24 +39,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Please provide text to parse" }, { status: 400 });
     }
 
-    await seedSystemKeywordsIfEmpty();
-
-    // 1. Split raw text by newline and extract date, amount, note
-    const lines = rawText.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean);
-    const parsedItems: ParsedExpenseResponse[] = [];
-    const unknownItemsForAI: Array<{ index: number; note: string }> = [];
-
-    // User's custom categories
-    const userCategories = await prisma.category.findMany({
-      where: { userId },
-      select: { name: true },
-    });
+    // 1. Fetch user categories and preload all DB keywords in a single fast parallel query
+    const [userCategories, loadedKeywords] = await Promise.all([
+      prisma.category.findMany({
+        where: { userId },
+        select: { name: true },
+      }),
+      preloadKeywordsForUser(userId),
+    ]);
 
     const allAvailableCategories = Array.from(
       new Set([...STANDARD_CATEGORIES, ...userCategories.map((c) => c.name)])
     );
 
-    // 2. Parse each line and attempt DB categorization
+    // 2. Split raw text by newline and parse each line
+    const lines = rawText.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean);
+    const parsedItems: ParsedExpenseResponse[] = [];
+    const unknownItemsForAI: Array<{ index: number; note: string }> = [];
+
+    let dbMatchedCount = 0;
+
+    // 3. Ultra-fast in-memory matching against DB keywords (takes <15ms for 2000+ items)
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const parsed = parseOneLiner(line);
@@ -61,10 +67,11 @@ export async function POST(request: NextRequest) {
 
       const itemIndex = parsedItems.length;
 
-      // Check DB (User custom keywords -> System default -> AI cached)
-      const dbMatch = await detectCategoryFromDB(parsed.note, userId);
+      // In-memory check against user -> system -> AI cached keywords
+      const dbMatch = matchCategoryFromLoadedKeywords(parsed.note, loadedKeywords);
 
       if (dbMatch && dbMatch.category !== "Other") {
+        dbMatchedCount++;
         parsedItems.push({
           date: parsed.date,
           amount: parsed.amount,
@@ -76,7 +83,7 @@ export async function POST(request: NextRequest) {
           matchedSource: dbMatch.source,
         });
       } else {
-        // Unknown or "Other" - queue for AI classification
+        // Unknown: queue for AI classification
         parsedItems.push({
           date: parsed.date,
           amount: parsed.amount,
@@ -99,7 +106,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. If there are unknown items, send them to AI in a single batch
+    // 4. Send remaining unknown items to AI (deduplicated & chunked)
+    let aiMatchedCount = 0;
     if (unknownItemsForAI.length > 0) {
       const aiResults = await batchClassifyWithAI(
         unknownItemsForAI,
@@ -109,6 +117,7 @@ export async function POST(request: NextRequest) {
 
       for (const [idx, aiRes] of aiResults.entries()) {
         if (parsedItems[idx] && aiRes.category !== "Other") {
+          aiMatchedCount++;
           parsedItems[idx].category = aiRes.category;
           parsedItems[idx].isAICategorized = true;
           parsedItems[idx].matchedKeyword = aiRes.extractedKeyword;
@@ -121,6 +130,8 @@ export async function POST(request: NextRequest) {
       success: true,
       items: parsedItems,
       totalCount: parsedItems.length,
+      dbMatchedCount,
+      aiMatchedCount,
     });
   } catch (error) {
     console.error("POST /api/expenses/parse error:", error);

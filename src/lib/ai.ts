@@ -130,7 +130,7 @@ export async function generateFinancialInsights(data: FinancialAggregateData): P
       headers["HTTP-Referer"] = "https://fintrack.app";
       headers["X-Title"] = "FinTrack Financial Analytics";
       if (!process.env.AI_MODEL) {
-        model = "meta-llama/llama-3.3-70b-instruct:free";
+        model = "openrouter/free";
       }
     } else if (openAiKey) {
       endpoint = "https://api.openai.com/v1/chat/completions";
