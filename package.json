@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "dev:custom": "node server.js",
-    "build": "next build",
-    "build2": "prisma migrate deploy && prisma generate && node prisma/seed.js && next build",
+    "build-old": "next build",
+    "build": "prisma migrate deploy && prisma generate && node prisma/seed.js && next build",
     "start": "next start",
     "lint": "eslint .",
     "db:reset": "prisma migrate reset",
