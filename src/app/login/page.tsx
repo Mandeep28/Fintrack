@@ -236,10 +236,6 @@ export default function LoginPage() {
           <Link href="/" className="flex items-center group">
             <FinTrackLogo variant="full" size="md" />
           </Link>
-
-          <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/15 dark:bg-black/30 backdrop-blur-md text-white border border-white/20 shadow-xs">
-            Minimalist SaaS
-          </span>
         </div>
 
         {/* Bottom Headline & Brand Pillars */}

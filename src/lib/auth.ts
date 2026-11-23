@@ -3,6 +3,11 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import {
+  isLockedOut,
+  recordFailedAttempt,
+  clearFailedAttempts,
+} from "@/lib/rate-limit";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -25,12 +30,33 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid email or password");
         }
 
+        const email = credentials.email.toLowerCase().trim();
+        const lockoutKey = `login_failed:${email}`;
+
+        // 1. Check if user/IP is currently locked out
+        const lockoutStatus = isLockedOut(lockoutKey);
+        if (lockoutStatus.locked) {
+          const minutesLeft = Math.max(
+            1,
+            Math.ceil((lockoutStatus.lockedUntil - Date.now()) / (60 * 1000))
+          );
+          throw new Error(
+            `Account temporarily locked due to too many failed attempts. Try again in ${minutesLeft} minute(s).`
+          );
+        }
+
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email.toLowerCase().trim() },
+          where: { email },
         });
 
-        // If user doesn't exist, return generic error (do not leak user existence)
+        // If user doesn't exist, record failed attempt to prevent timing-based user enumeration
         if (!user) {
+          const attemptResult = recordFailedAttempt(lockoutKey, 5, 15 * 60 * 1000);
+          if (attemptResult.locked) {
+            throw new Error(
+              "Account temporarily locked due to too many failed attempts. Try again in 15 minutes."
+            );
+          }
           throw new Error("Invalid email or password");
         }
 
@@ -53,10 +79,22 @@ export const authOptions: NextAuthOptions = {
 
         const isValid = await bcrypt.compare(credentials.password, user.password);
 
-        // Generic error if password does not match
+        // Record failed attempt and warn with attempts remaining
         if (!isValid) {
-          throw new Error("Invalid email or password");
+          const attemptResult = recordFailedAttempt(lockoutKey, 5, 15 * 60 * 1000);
+          if (attemptResult.locked) {
+            throw new Error(
+              "Too many failed login attempts. Your account has been temporarily locked for 15 minutes."
+            );
+          }
+          const attemptsLeft = attemptResult.attemptsLeft;
+          throw new Error(
+            `Invalid email or password. (${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} remaining before temporary lockout)`
+          );
         }
+
+        // Clear failed attempts counter upon successful login
+        clearFailedAttempts(lockoutKey);
 
         return {
           id: user.id,

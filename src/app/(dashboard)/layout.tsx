@@ -1,10 +1,19 @@
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await getServerSession(authOptions);
+
+  if (!session || session.user?.status === "DEACTIVATED") {
+    redirect("/login");
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-200 relative overflow-x-hidden">
       {/* Two-color subtle ambient glow in dark mode */}

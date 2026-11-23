@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseOneLiner } from "@/lib/categorizer";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import {
   STANDARD_CATEGORIES,
   preloadKeywordsForUser,
@@ -32,6 +33,15 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = session.user.id;
+
+    // Rate limit: max 20 parse requests per minute per user
+    const rateCheck = checkRateLimit(`parse_expense:${userId}`, {
+      limit: 20,
+      windowMs: 60 * 1000,
+    });
+    if (!rateCheck.success) {
+      return rateLimitResponse(rateCheck.reset);
+    }
     const body = await request.json();
     const rawText = typeof body.text === "string" ? body.text : "";
 
