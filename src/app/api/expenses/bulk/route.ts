@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import * as z from "zod";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const bulkExpenseSchema = z.object({
   expenses: z.array(
@@ -21,6 +22,15 @@ export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    // Rate limit: max 15 bulk imports per 10 minutes per user
+    const rateCheck = checkRateLimit(`bulk_expenses:${session.user.id}`, {
+      limit: 15,
+      windowMs: 10 * 60 * 1000,
+    });
+    if (!rateCheck.success) {
+      return rateLimitResponse(rateCheck.reset);
     }
 
     const body = await req.json();
